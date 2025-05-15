@@ -7,10 +7,14 @@ import (
 	"kmem/internal/utils"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPostgres(t *testing.T) {
+	err := godotenv.Load("../.env")
+	assert.Nil(t, err)
+
 	t.Run("testConnection", func(t *testing.T) {
 		pg, err := database.Connect(t.Context())
 		if err != nil {
@@ -21,6 +25,9 @@ func TestPostgres(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
+	err := godotenv.Load("../.env")
+	assert.Nil(t, err)
+
 	t.Run("test query user", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 

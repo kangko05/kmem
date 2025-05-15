@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kmem/internal/database"
+	"kmem/internal/utils"
 	"time"
 )
 
@@ -64,14 +65,14 @@ func (te *testEvent) handle(ctx context.Context, _ *database.Postgres) Result {
 	resultCh := make(chan Result, 1)
 
 	go func() {
-		resultCh <- newEventResult(SUCCESS, fmt.Sprintf("test event %d", te.idx), nil)
+		resultCh <- newEventResult(utils.SUCCESS, fmt.Sprintf("test event %d", te.idx), nil)
 	}()
 
 	select {
 	case <-ctx.Done():
-		return newEventResult(FAIL, fmt.Sprintf("test event canceld: %v", ctx.Err()), nil)
+		return newEventResult(utils.FAIL, fmt.Sprintf("test event canceld: %v", ctx.Err()), nil)
 	case <-time.After(te.timeout):
-		return newEventResult(FAIL, "event has timed out", nil)
+		return newEventResult(utils.FAIL, "event has timed out", nil)
 	case result := <-resultCh:
 		return result
 	}

@@ -53,19 +53,19 @@ func (ul *userLoggedIn) setTimeout(t time.Duration) {
 func (ul *userLoggedIn) handle(ctx context.Context, pg *database.Postgres) Result {
 	accessToken, err := utils.CreateJwt(utils.ACCESSTOKEN_MAX_AGE, ul.username)
 	if err != nil {
-		return newEventResult(FAIL, fmt.Sprintf("failed to create access token: %v", err), nil)
+		return newEventResult(utils.FAIL, fmt.Sprintf("failed to create access token: %v", err), nil)
 	}
 
 	refreshToken, err := utils.CreateJwt(utils.REFRESHTOKEN_MAX_AGE, ul.username)
 	if err != nil {
-		return newEventResult(FAIL, fmt.Sprintf("failed to create refresh token: %v", err), nil)
+		return newEventResult(utils.FAIL, fmt.Sprintf("failed to create refresh token: %v", err), nil)
 	}
 
 	if err := command.UpdateLastLogin(pg, ul.username); err != nil {
-		return newEventResult(FAIL, "login fail", nil)
+		return newEventResult(utils.FAIL, "login fail", nil)
 	}
 
-	return newEventResult(SUCCESS, "login success", map[string]string{
+	return newEventResult(utils.SUCCESS, "login success", map[string]string{
 		utils.ACCESS_TOKEN:  accessToken,
 		utils.REFRESH_TOKEN: refreshToken,
 	})

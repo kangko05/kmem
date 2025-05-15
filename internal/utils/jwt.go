@@ -1,22 +1,10 @@
 package utils
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-)
-
-const (
-	SECRET_KEY = "TODO: SECRET KEY MUST BE HANDLED WITH CARE"
-)
-
-// tokens
-const (
-	ACCESS_TOKEN  = "accessToken"
-	REFRESH_TOKEN = "refreshToken"
-
-	ACCESSTOKEN_MAX_AGE  = time.Minute * 20
-	REFRESHTOKEN_MAX_AGE = time.Hour * 24 * 7
 )
 
 func CreateJwt(dur time.Duration, username string) (string, error) {
@@ -25,5 +13,5 @@ func CreateJwt(dur time.Duration, username string) (string, error) {
 		"exp":  time.Now().Add(dur),
 	})
 
-	return token.SignedString([]byte(SECRET_KEY))
+	return token.SignedString([]byte(os.Getenv("SECRET_KEY")))
 }

@@ -23,7 +23,7 @@ func setupAuth(router *gin.Engine, store *event.Store, pg *database.Postgres) *g
 	{
 		authGroup.POST("signup", auth.Signup(store, pg))
 		authGroup.POST("login", auth.Login(store, pg))
-		authGroup.POST("refresh", auth.Refresh())
+		authGroup.GET("refresh", auth.Refresh())
 	}
 
 	return authGroup

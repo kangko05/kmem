@@ -6,6 +6,7 @@ import (
 	"kmem/internal/database"
 	"kmem/internal/database/command"
 	"kmem/internal/models"
+	"kmem/internal/utils"
 	"time"
 )
 
@@ -27,10 +28,10 @@ func UserRegistered(user models.User, options ...eventOption) *userRegistered {
 
 func (ur *userRegistered) handle(ctx context.Context, pg *database.Postgres) Result {
 	if err := command.InsertUser(pg, ur.user); err != nil {
-		return newEventResult(FAIL, fmt.Sprintf("failed to store user: %v", err), nil)
+		return newEventResult(utils.FAIL, fmt.Sprintf("failed to store user: %v", err), nil)
 	}
 
-	return newEventResult(SUCCESS, "successfully stored user: "+ur.user.Username, nil)
+	return newEventResult(utils.SUCCESS, "successfully stored user: "+ur.user.Username, nil)
 }
 
 func (ur *userRegistered) setResultChannel(resultChan chan Result) {
