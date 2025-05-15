@@ -41,7 +41,7 @@ func Signup(store *event.Store, pg *database.Postgres) func(*gin.Context) {
 
 		result := <-resChan
 
-		if result.Status() == event.SUCCESS {
+		if result.Status() == utils.SUCCESS {
 			ctx.String(http.StatusOK, result.Message())
 		} else {
 			ctx.String(http.StatusInternalServerError, result.Message())

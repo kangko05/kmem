@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -13,7 +14,8 @@ type Postgres struct {
 }
 
 func Connect(ctx context.Context) (*Postgres, error) {
-	connStr := fmt.Sprintf("host=localhost port=5432 user=kang password=%s dbname=kmem sslmode=disable", "rkdehddn12")
+	connStr := os.Getenv("POSTGRESQL")
+
 	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err

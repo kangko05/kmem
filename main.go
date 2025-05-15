@@ -7,11 +7,16 @@ import (
 	"kmem/internal/event"
 	"kmem/internal/router"
 	"log"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
-const PORT = ":8000"
-
 func main() {
+	if err := godotenv.Load(".env"); err != nil {
+		log.Panicf("failed to load env: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,7 +35,7 @@ func main() {
 	log.Println("starting gin server...")
 	fmt.Println()
 
-	if err := router.Setup(store, pg).Run(PORT); err != nil {
+	if err := router.Setup(store, pg).Run(os.Getenv("PORT")); err != nil {
 		log.Panicf("failed to run router: %v\n", err)
 	}
 }

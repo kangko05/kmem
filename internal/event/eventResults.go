@@ -1,21 +1,17 @@
 package event
 
-import "fmt"
-
-type eventStatus int
-
-const (
-	SUCCESS eventStatus = iota
-	FAIL    eventStatus = iota + 1
+import (
+	"fmt"
+	"kmem/internal/utils"
 )
 
 type Result struct {
-	status  eventStatus
+	status  utils.EventStatus
 	message string
 	payload any
 }
 
-func newEventResult(status eventStatus, msg string, payload any) Result {
+func newEventResult(status utils.EventStatus, msg string, payload any) Result {
 	return Result{
 		status:  status,
 		message: msg,
@@ -26,14 +22,14 @@ func newEventResult(status eventStatus, msg string, payload any) Result {
 func (r Result) String() string {
 	status := "Fail"
 
-	if r.status == SUCCESS {
+	if r.status == utils.SUCCESS {
 		status = "Success"
 	}
 
 	return fmt.Sprintf("[%s]: %s", status, r.message)
 }
 
-func (r Result) Status() eventStatus {
+func (r Result) Status() utils.EventStatus {
 	return r.status
 }
 

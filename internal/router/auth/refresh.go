@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kmem/internal/utils"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -23,7 +24,7 @@ func Refresh() func(*gin.Context) {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 			}
 
-			return []byte(utils.SECRET_KEY), nil
+			return []byte(os.Getenv("SECRET_KEY")), nil
 		})
 		if err != nil {
 			ctx.String(http.StatusUnauthorized, fmt.Sprintf("failed to parse token: %v", err))

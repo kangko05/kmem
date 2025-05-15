@@ -41,7 +41,7 @@ func Login(store *event.Store, pg *database.Postgres) func(*gin.Context) {
 
 		result := <-resChan
 
-		if result.Status() == event.SUCCESS {
+		if result.Status() == utils.SUCCESS {
 			tokens, ok := result.Payload().(map[string]string)
 			if tokens == nil {
 				ctx.String(http.StatusInternalServerError, "tokens not found")

@@ -4,14 +4,19 @@ import (
 	"fmt"
 	"kmem/internal/database"
 	"kmem/internal/event"
+	"kmem/internal/utils"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStore(t *testing.T) {
+	err := godotenv.Load("../.env")
+	assert.Nil(t, err)
+
 	pg, err := database.Connect(t.Context())
 	assert.Nil(t, err)
 	defer pg.Close()
@@ -33,7 +38,7 @@ func TestStore(t *testing.T) {
 
 		result := <-rchan
 
-		assert.Equal(t, result.Status(), event.SUCCESS)
+		assert.Equal(t, result.Status(), utils.SUCCESS)
 		assert.Equal(t, result.Message(), "test event 0")
 	})
 
@@ -57,7 +62,7 @@ func TestStore(t *testing.T) {
 
 				result := <-rchan
 
-				assert.Equal(t, event.SUCCESS, result.Status())
+				assert.Equal(t, utils.SUCCESS, result.Status())
 				assert.Equal(t, fmt.Sprintf("test event %d", i), result.Message())
 			}()
 		}
@@ -100,7 +105,7 @@ func TestStore(t *testing.T) {
 	// 	store.Register(longEvent)
 	// 	result := <-rchan
 	//
-	// 	assert.Equal(t, event.FAIL, result.Status())
+	// 	assert.Equal(t, event.utils.FAIL, result.Status())
 	// 	assert.Contains(t, result.Message(), "timed out")
 	// })
 
