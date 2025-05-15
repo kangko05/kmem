@@ -64,7 +64,6 @@ func (te *testEvent) handle(ctx context.Context, _ *database.Postgres) Result {
 	resultCh := make(chan Result, 1)
 
 	go func() {
-		time.Sleep(time.Second)
 		resultCh <- newEventResult(SUCCESS, fmt.Sprintf("test event %d", te.idx))
 	}()
 
