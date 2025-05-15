@@ -1,7 +1,9 @@
-package router
+package auth
 
 import (
 	"fmt"
+	"kmem/internal/database"
+	"kmem/internal/database/query"
 	"kmem/internal/event"
 	"kmem/internal/models"
 	"kmem/internal/utils"
@@ -10,17 +12,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func signup(store *event.Store) func(*gin.Context) {
+func Signup(store *event.Store, pg *database.Postgres) func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		var user models.User
+		checkUserPostBody(ctx, &user)
 
-		if err := ctx.Bind(&user); err != nil {
-			ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to get post body: %v", err))
-			return
-		}
-
-		if len(user.Username) < 4 || len(user.Password) < 8 {
-			ctx.String(http.StatusBadRequest, fmt.Sprintf("username must be longer than 4, password must be longer than 8"))
+		// check if username exists
+		quser, _ := query.QueryUser(pg, user.Username)
+		if quser.Username == user.Username && len(quser.Password) > 0 {
+			ctx.String(http.StatusBadRequest, fmt.Sprintf("username %s exists", quser.Username))
 			return
 		}
 
@@ -31,15 +31,15 @@ func signup(store *event.Store) func(*gin.Context) {
 		}
 
 		// get result from store
-		resultCh := make(chan event.Result, 1)
-		defer close(resultCh)
+		resChan := make(chan event.Result, 1)
+		defer close(resChan)
 
 		store.Register(event.UserRegistered(
 			models.User{Username: user.Username, Password: hashedPassword},
-			event.WithResultChan(resultCh)),
+			event.WithResultChan(resChan)),
 		)
 
-		result := <-resultCh
+		result := <-resChan
 
 		if result.Status() == event.SUCCESS {
 			ctx.String(http.StatusOK, result.Message())

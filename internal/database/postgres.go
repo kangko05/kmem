@@ -31,23 +31,47 @@ func (pg *Postgres) Close() {
 }
 
 // for commands
-func (pg *Postgres) Exec(ctx context.Context, query string, args ...any) error {
+func (pg *Postgres) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	tx, err := pg.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin tx: %v", err)
+	}
+
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return nil, fmt.Errorf("failed to rollback: %v", rbErr)
+		}
+
+		return nil, fmt.Errorf("failed to exec query: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit tx: %v", err)
+	}
+
+	return result, nil
+}
+
+// for queries
+func (pg *Postgres) QueryRow(ctx context.Context, scanFn func(*sql.Row) error, query string, args ...any) error {
 	tx, err := pg.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin tx: %v", err)
 	}
 
-	_, err = tx.ExecContext(ctx, query, args...)
-	if err != nil {
+	row := tx.QueryRowContext(ctx, query, args...)
+
+	if err := scanFn(row); err != nil {
+		return fmt.Errorf("failed to scan values: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return fmt.Errorf("failed to rollback: %v", rbErr)
 		}
 
-		return fmt.Errorf("failed to exec query: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tx: %v", err)
+		return fmt.Errorf("failed to query row: %v", err)
 	}
 
 	return nil

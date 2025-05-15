@@ -12,12 +12,14 @@ const (
 type Result struct {
 	status  eventStatus
 	message string
+	payload any
 }
 
-func newEventResult(status eventStatus, msg string) Result {
+func newEventResult(status eventStatus, msg string, payload any) Result {
 	return Result{
 		status:  status,
 		message: msg,
+		payload: payload,
 	}
 }
 
@@ -37,4 +39,8 @@ func (r Result) Status() eventStatus {
 
 func (r Result) Message() string {
 	return r.message
+}
+
+func (r Result) Payload() any {
+	return r.payload
 }

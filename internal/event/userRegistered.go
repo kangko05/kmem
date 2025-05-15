@@ -26,11 +26,11 @@ func UserRegistered(user models.User, options ...eventOption) *userRegistered {
 }
 
 func (ur *userRegistered) handle(ctx context.Context, pg *database.Postgres) Result {
-	if err := command.StoreUser(pg, ur.user); err != nil {
-		return newEventResult(FAIL, fmt.Sprintf("failed to store user: %v", err))
+	if err := command.InsertUser(pg, ur.user); err != nil {
+		return newEventResult(FAIL, fmt.Sprintf("failed to store user: %v", err), nil)
 	}
 
-	return newEventResult(SUCCESS, "successfully stored user: "+ur.user.Username)
+	return newEventResult(SUCCESS, "successfully stored user: "+ur.user.Username, nil)
 }
 
 func (ur *userRegistered) setResultChannel(resultChan chan Result) {
@@ -44,12 +44,3 @@ func (ur userRegistered) getResultChannel() chan Result {
 func (ur *userRegistered) setTimeout(t time.Duration) {
 	ur.timeout = t
 }
-
-/*
-	handle(context.Context) Result
-
-	setResultChannel(chan Result)
-	getResultChannel() chan Result
-
-	setTimeout(time.Duration)
-*/
