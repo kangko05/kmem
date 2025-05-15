@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"kmem/internal/database"
 	"kmem/internal/event"
 	"kmem/internal/router"
@@ -27,9 +28,9 @@ func main() {
 
 	log.Println("started store")
 	log.Println("starting gin server...")
-	log.Println()
+	fmt.Println()
 
-	if err := router.Setup(store).Run(PORT); err != nil {
+	if err := router.Setup(store, pg).Run(PORT); err != nil {
 		log.Panicf("failed to run router: %v\n", err)
 	}
 }

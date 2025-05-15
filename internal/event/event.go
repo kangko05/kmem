@@ -20,7 +20,7 @@ type eventType interface {
 // default
 
 const (
-	defaultTimeout = 5
+	defaultTimeout = 5 * time.Second
 )
 
 // event base ================================================================
@@ -64,14 +64,14 @@ func (te *testEvent) handle(ctx context.Context, _ *database.Postgres) Result {
 	resultCh := make(chan Result, 1)
 
 	go func() {
-		resultCh <- newEventResult(SUCCESS, fmt.Sprintf("test event %d", te.idx))
+		resultCh <- newEventResult(SUCCESS, fmt.Sprintf("test event %d", te.idx), nil)
 	}()
 
 	select {
 	case <-ctx.Done():
-		return newEventResult(FAIL, fmt.Sprintf("test event canceld: %v", ctx.Err()))
+		return newEventResult(FAIL, fmt.Sprintf("test event canceld: %v", ctx.Err()), nil)
 	case <-time.After(te.timeout):
-		return newEventResult(FAIL, "event has timed out")
+		return newEventResult(FAIL, "event has timed out", nil)
 	case result := <-resultCh:
 		return result
 	}
