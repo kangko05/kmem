@@ -2,18 +2,21 @@ package event
 
 import (
 	"context"
+	"kmem/internal/database"
 	"log"
 )
 
 type Store struct {
 	ctx    context.Context
 	evchan chan eventType
+	pg     *database.Postgres
 }
 
-func NewStore(ctx context.Context) *Store {
+func NewStore(ctx context.Context, pg *database.Postgres) *Store {
 	return &Store{
 		ctx:    ctx,
 		evchan: make(chan eventType, 100),
+		pg:     pg,
 	}
 }
 
@@ -27,7 +30,7 @@ func (s *Store) Run() {
 			return
 
 		case ev := <-s.evchan:
-			res := ev.handle(s.ctx)
+			res := ev.handle(s.ctx, s.pg)
 
 			if resChan := ev.getResultChannel(); resChan != nil {
 				resChan <- res
