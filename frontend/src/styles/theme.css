@@ -1,0 +1,13 @@
+@layer components {
+  .page-container {
+    @apply w-full h-full flex items-center justify-center;
+  }
+
+  .btn {
+    @apply w-full bg-blue-500 rounded-lg hover:bg-blue-300 cursor-pointer py-2;
+  }
+}
+
+@utility flex-center {
+  @apply flex justify-center items-center;
+}

@@ -66,7 +66,7 @@ func (ul *userLoggedIn) handle(ctx context.Context, pg *database.Postgres) Resul
 	}
 
 	return newEventResult(utils.SUCCESS, "login success", map[string]string{
-		utils.ACCESS_TOKEN:  accessToken,
-		utils.REFRESH_TOKEN: refreshToken,
+		string(utils.ACCESS_TOKEN):  accessToken,
+		string(utils.REFRESH_TOKEN): refreshToken,
 	})
 }
