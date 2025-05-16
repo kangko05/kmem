@@ -16,6 +16,8 @@ const (
 	REFRESHTOKEN_MAX_AGE = time.Hour * 24 * 7
 
 	USERNAME_KEY = "username"
+
+	FILES_MAX_MEMORY = 32 << 20
 )
 
 // events

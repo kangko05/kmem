@@ -9,15 +9,6 @@ import (
 	"time"
 )
 
-/*
-	handle(context.Context) Result
-
-	setResultChannel(chan Result)
-	getResultChannel() chan Result
-
-	setTimeout(time.Duration)
-*/
-
 type userLoggedIn struct {
 	username string
 	timeout  time.Duration
