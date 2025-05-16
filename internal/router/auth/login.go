@@ -52,20 +52,20 @@ func Login(store *event.Store, pg *database.Postgres) func(*gin.Context) {
 				return
 			}
 
-			accessToken, atExists := tokens[utils.ACCESS_TOKEN]
+			accessToken, atExists := tokens[string(utils.ACCESS_TOKEN)]
 			if !atExists {
 				ctx.String(http.StatusInternalServerError, "accessToken does not exist")
 				return
 			}
 
-			refreshToken, rtExists := tokens[utils.REFRESH_TOKEN]
+			refreshToken, rtExists := tokens[string(utils.REFRESH_TOKEN)]
 			if !rtExists {
 				ctx.String(http.StatusInternalServerError, "refreshToken does not exist")
 				return
 			}
 
-			ctx.SetCookie(utils.ACCESS_TOKEN, accessToken, int(utils.ACCESSTOKEN_MAX_AGE), "/", "", true, true)
-			ctx.SetCookie(utils.REFRESH_TOKEN, refreshToken, int(utils.REFRESHTOKEN_MAX_AGE), "/", "", true, true)
+			ctx.SetCookie(string(utils.ACCESS_TOKEN), accessToken, int(utils.ACCESSTOKEN_MAX_AGE), "/", "", true, true)
+			ctx.SetCookie(string(utils.REFRESH_TOKEN), refreshToken, int(utils.REFRESHTOKEN_MAX_AGE), "/", "", true, true)
 
 			ctx.String(http.StatusOK, result.Message())
 		} else {
