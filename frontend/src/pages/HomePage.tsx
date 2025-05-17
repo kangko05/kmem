@@ -2,6 +2,7 @@ import { axiosInstance } from "../utils/AxiosIntstance";
 import { useAuthCheck } from "../hooks";
 import { LAST_VISITED } from "../constants";
 import { Link, useNavigate } from "react-router";
+import { UploadBox } from "../components";
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ export const HomePage = () => {
       <Link className="btn text-amber-300 text-sm sm:text-base md:text-lg mt-3" to="/more">
         More
       </Link>
+
+      <UploadBox />
     </>
   );
 };
