@@ -4,6 +4,7 @@ import (
 	"kmem/internal/database"
 	"kmem/internal/event"
 	"kmem/internal/router/auth"
+	"kmem/internal/router/files"
 	"kmem/internal/router/middleware"
 	"net/http"
 	"time"
@@ -22,11 +23,13 @@ func Setup(store *event.Store, pg *database.Postgres) *gin.Engine {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
+		AllowWildcard:    true,
 	}))
 
 	router.GET("/ping", ping)
 
 	setupAuth(router, store, pg)
+	setupFiles(router, store)
 
 	return router
 }
@@ -41,6 +44,14 @@ func setupAuth(router *gin.Engine, store *event.Store, pg *database.Postgres) *g
 	}
 
 	return authGroup
+}
+
+func setupFiles(router *gin.Engine, store *event.Store) {
+	filesGroup := router.Group("files")
+	filesGroup.Use(middleware.AuthenticateJwt())
+	{
+		filesGroup.POST("upload", files.Upload(store))
+	}
 }
 
 func ping(ctx *gin.Context) {
