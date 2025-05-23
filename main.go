@@ -13,13 +13,6 @@ import (
 )
 
 func main() {
-	// if err := godotenv.Load(".env"); err != nil {
-	// 	log.Panicf("failed to load env: %v", err)
-	// }
-
-	// TODO: this has to be passed as env var
-	const JWT_SECRET = "TODO: SECRET KEY MUST BE HANDLED WITH CARE"
-
 	conf, err := config.Load("config.yml")
 	if err != nil {
 		panic(err)
@@ -48,7 +41,7 @@ func main() {
 	log.Println("starting gin server...")
 	fmt.Println()
 
-	if err := router.Setup(store, conf, pg, cache, JWT_SECRET).Run(conf.GetHttpPort()); err != nil {
+	if err := router.Setup(store, conf, pg, cache, conf.JwtSecret()).Run(conf.Port()); err != nil {
 		log.Panicf("failed to run router: %v\n", err)
 	}
 }

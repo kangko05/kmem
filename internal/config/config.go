@@ -17,7 +17,8 @@ type Postgres struct {
 }
 
 type Server struct {
-	Port int `yaml:"Port"`
+	JwtSecret string `yaml:"jwtSecret"`
+	Port      int    `yaml:"port"`
 }
 
 type Config struct {
@@ -29,6 +30,18 @@ type Config struct {
 }
 
 func Load(filename string) (*Config, error) {
+	// get jwtSecret & pgPassword from env var
+	jwtSecret := os.Getenv("JWT_SECRET")
+	pgPass := os.Getenv("POSTGRES_PASSWORD")
+
+	if len(jwtSecret) == 0 {
+		return nil, fmt.Errorf("jwt secret key not provided as env var")
+	}
+
+	if len(pgPass) == 0 {
+		return nil, fmt.Errorf("postgres password not provided as env var")
+	}
+
 	rb, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %v", err)
@@ -39,9 +52,16 @@ func Load(filename string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal yaml: %v", err)
 	}
 
+	config.Serv.JwtSecret = jwtSecret
+	config.Postgres.Password = pgPass
+
 	return &config, nil
 }
 
 func (c *Config) Port() string {
 	return fmt.Sprintf(":%d", c.Serv.Port)
+}
+
+func (c *Config) JwtSecret() string {
+	return c.Serv.JwtSecret
 }
