@@ -1,0 +1,110 @@
+package database
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"kmem/internal/config"
+
+	_ "github.com/lib/pq"
+)
+
+type Postgres struct {
+	conn *sql.DB
+}
+
+func Connect(ctx context.Context, pgConfig *config.Postgres) (*Postgres, error) {
+	// prepare conn str
+	connStr := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		pgConfig.Host, pgConfig.Port, pgConfig.User, pgConfig.Password, pgConfig.DatabaseName, pgConfig.SslMode,
+	)
+
+	conn, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := conn.Ping(); err != nil {
+		return nil, err
+	}
+
+	return &Postgres{conn: conn}, nil
+}
+
+func (pg *Postgres) Close() {
+	pg.conn.Close()
+}
+
+// for commands
+func (pg *Postgres) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	tx, err := pg.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin tx: %v", err)
+	}
+
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return nil, fmt.Errorf("failed to rollback: %v", rbErr)
+		}
+
+		return nil, fmt.Errorf("failed to exec query: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit tx: %v", err)
+	}
+
+	return result, nil
+}
+
+// for queries
+func (pg *Postgres) QueryRow(ctx context.Context, scanFn func(*sql.Row) error, query string, args ...any) error {
+	tx, err := pg.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %v", err)
+	}
+
+	row := tx.QueryRowContext(ctx, query, args...)
+
+	if err := scanFn(row); err != nil {
+		return fmt.Errorf("failed to scan values: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("failed to rollback: %v", rbErr)
+		}
+
+		return fmt.Errorf("failed to query row: %v", err)
+	}
+
+	return nil
+}
+
+func (pg *Postgres) Query(ctx context.Context, scanFn func(*sql.Rows) error, query string, args ...any) error {
+	tx, err := pg.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %v", err)
+	}
+
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to query rows: %v", err)
+	}
+
+	if err := scanFn(rows); err != nil {
+		return fmt.Errorf("failed to scan values: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("failed to rollback: %v", rbErr)
+		}
+
+		return fmt.Errorf("failed to query row: %v", err)
+	}
+
+	return nil
+}
