@@ -7,12 +7,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type PostgresConfig struct {
+	Host         string `yaml:"host"`
+	Port         int    `yaml:"port"`
+	User         string `yaml:"user"`
+	Password     string `yaml:"password"`
+	DatabaseName string `yaml:"databaseName"`
+	SslMode      string `yaml:"sslmode"`
+}
+
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port      int    `yaml:"port"`
+	JwtSecret string `yaml:"jwtSecret"`
+	// AccessTokenDur   int    `yaml:"accessTokenDur"`  // in min
+	// RefreeshTokenDur int    `yaml:"refreshTokenDur"` // in min
 }
 
 type Config struct {
-	Server ServerConfig `yaml:"server"`
+	Server   ServerConfig   `yaml:"server"`
+	Postgres PostgresConfig `yaml:"postgres"`
 }
 
 func prepare(configPath string) error {
@@ -20,8 +33,17 @@ func prepare(configPath string) error {
 		Port: 8000,
 	}
 
+	pg := PostgresConfig{Host: "localhost",
+		Port:         5432,
+		User:         "kang",
+		Password:     "",
+		DatabaseName: "kmem",
+		SslMode:      "disable",
+	}
+
 	conf := Config{
-		Server: sc,
+		Server:   sc,
+		Postgres: pg,
 	}
 
 	wb, err := yaml.Marshal(conf)
@@ -55,9 +77,38 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal yaml: %v", err)
 	}
 
+	pgPass := os.Getenv("POSTGRES_PASSWORD")
+	if len(pgPass) == 0 {
+		return nil, fmt.Errorf("failed to get postgres password")
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET_KEY")
+	if len(jwtSecret) == 0 {
+		return nil, fmt.Errorf("failed to get jwt secret key")
+	}
+
+	conf.Postgres.Password = pgPass
+	conf.Server.JwtSecret = jwtSecret
+
 	return &conf, nil
 }
 
 func (c *Config) ServerPort() string {
-	return fmt.Sprintf("0.0.0.0:%d", c.Server.Port)
+	return fmt.Sprintf(":%d", c.Server.Port)
+}
+
+func (c *Config) PostgresConnStr() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Postgres.Host,
+		c.Postgres.Port,
+		c.Postgres.User,
+		c.Postgres.Password,
+		c.Postgres.DatabaseName,
+		c.Postgres.SslMode,
+	)
+}
+
+func (c *Config) JwtSecretKey() string {
+	return c.Server.JwtSecret
 }

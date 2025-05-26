@@ -1,2 +1,10 @@
 server:
     port: 8000
+    jwtSecret: ""
+postgres:
+    host: localhost
+    port: 5432
+    user: kang
+    password: ""
+    databaseName: kmem
+    sslmode: disable
