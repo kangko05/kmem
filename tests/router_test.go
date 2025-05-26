@@ -3,9 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"kmem/internal/config"
-	"kmem/internal/db"
 	"kmem/internal/models"
 	"kmem/internal/router"
 	"kmem/internal/utils"
@@ -13,89 +10,118 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
-// test endpoints
-func TestRouter(t *testing.T) {
-	assert := assert.New(t)
+func TestPing(t *testing.T) {
+	router := router.Setup(testDB, testConfig)
 
-	err := godotenv.Load("../.env")
-	assert.Nil(err)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/ping", nil)
+	router.ServeHTTP(w, req)
 
-	conf, err := config.Load("../config.yml")
-	assert.Nil(err)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "pong\n", w.Body.String())
+}
 
-	pg, err := db.Connect(conf)
-	assert.Nil(err)
+func TestSignupSuccess(t *testing.T) {
+	cleanupTables(t)
 
-	url := "http://localhost:8000"
-	router := router.Setup(pg, conf)
-
+	router := router.Setup(testDB, testConfig)
 	testUser := models.User{
-		Username: "test",
-		Password: "testpassword",
+		Username: "testuser",
+		Password: "testpassword123",
 	}
 
-	t.Run("test ping", func(t *testing.T) {
-		writer := httptest.NewRecorder()
+	wb, _ := json.Marshal(testUser)
+	req, _ := http.NewRequest("POST", "/auth/signup", bytes.NewReader(wb))
+	req.Header.Set("Content-Type", "application/json")
 
-		req, err := http.NewRequest("GET", fmt.Sprintf("%s/ping", url), nil)
-		assert.Nil(err)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		router.ServeHTTP(writer, req)
+	assert.Equal(t, http.StatusOK, w.Code)
 
-		assert.Equal(http.StatusOK, writer.Code)
-		assert.Equal("pong\n", writer.Body.String())
-	})
+	u, err := testDB.QueryUser(testUser.Username)
+	assert.Nil(t, err)
+	assert.Equal(t, testUser.Username, u.Username)
+	assert.True(t, utils.CheckPasswordHash(u.Password, testUser.Password))
+}
 
-	// fail test
-	t.Run("test signup1", func(t *testing.T) {
-		writer := httptest.NewRecorder()
+func TestSignupValidation(t *testing.T) {
+	cleanupTables(t)
 
-		wb, err := json.Marshal(models.User{
-			Username: "a",
-			Password: "b",
+	router := router.Setup(testDB, testConfig)
+
+	tests := []struct {
+		name string
+		user models.User
+		want int
+	}{
+		{"short username", models.User{Username: "ab", Password: "testpassword123"}, http.StatusBadRequest},
+		{"short password", models.User{Username: "testuser", Password: "123"}, http.StatusBadRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wb, _ := json.Marshal(tt.user)
+			req, _ := http.NewRequest("POST", "/auth/signup", bytes.NewReader(wb))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.want, w.Code)
 		})
-		assert.Nil(err)
+	}
+}
 
-		req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/signup", url), bytes.NewReader(wb))
-		assert.Nil(err)
+func TestLogin(t *testing.T) {
+	cleanupTables(t)
 
-		req.Header.Set("Content-Type", "application/json")
+	router := router.Setup(testDB, testConfig)
+	testUser := models.User{
+		Username: "testuser",
+		Password: "testpassword123",
+	}
 
-		router.ServeHTTP(writer, req)
+	err := testDB.InsertUser(testUser)
+	assert.Nil(t, err)
 
-		assert.Equal(http.StatusBadRequest, writer.Code)
-	})
+	wb, _ := json.Marshal(testUser)
+	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewReader(wb))
+	req.Header.Set("Content-Type", "application/json")
 
-	t.Run("test signup2", func(t *testing.T) {
-		u, err := pg.QueryUser(testUser.Username)
-		assert.Nil(err)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		check := utils.CheckPasswordHash(u.Password, testUser.Password)
-		assert.True(check)
-	})
+	assert.Equal(t, http.StatusOK, w.Code)
 
-	t.Run("test login1", func(t *testing.T) {
-		writer := httptest.NewRecorder()
+	cookies := w.Result().Cookies()
+	cookieNames := make(map[string]bool)
+	for _, cookie := range cookies {
+		cookieNames[cookie.Name] = true
+	}
+	assert.True(t, cookieNames[utils.ACCESS_TOKEN_KEY])
+	assert.True(t, cookieNames[utils.REFRESH_TOKEN_KEY])
+}
 
-		wb, err := json.Marshal(testUser)
-		assert.Nil(err)
+func TestLoginWrongCredentials(t *testing.T) {
+	cleanupTables(t)
 
-		req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/login", url), bytes.NewReader(wb))
-		assert.Nil(err)
+	router := router.Setup(testDB, testConfig)
 
-		req.Header.Set("Content-Type", "application/json")
+	wrongUser := models.User{
+		Username: "wronguser",
+		Password: "wrongpassword",
+	}
 
-		router.ServeHTTP(writer, req)
+	wb, _ := json.Marshal(wrongUser)
+	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewReader(wb))
+	req.Header.Set("Content-Type", "application/json")
 
-		for _, cookie := range writer.Result().Cookies() {
-			accessOrRefresh := (cookie.Name == utils.ACCESS_TOKEN_KEY) || (cookie.Name == utils.REFRESH_TOKEN_KEY)
-			assert.True(accessOrRefresh)
-		}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-		assert.Equal(http.StatusOK, writer.Code)
-	})
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
