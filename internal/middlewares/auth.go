@@ -3,6 +3,7 @@ package middlewares
 import (
 	"fmt"
 	"kmem/internal/config"
+	"kmem/internal/models"
 	"kmem/internal/utils"
 	"log"
 	"net/http"
@@ -50,14 +51,18 @@ func Auth(conf *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		jwtSecret := conf.JwtSecretKey()
 
-		_, err := validateToken(ctx, utils.ACCESS_TOKEN_KEY, jwtSecret)
+		username, err := validateToken(ctx, utils.ACCESS_TOKEN_KEY, jwtSecret)
 		if err != nil {
 			log.Printf("failed to validate access token: %v\n", err)
 			log.Println("getting refresh token...")
 
 			username, refreshErr := validateToken(ctx, utils.REFRESH_TOKEN_KEY, jwtSecret)
 			if refreshErr != nil {
-				ctx.String(http.StatusUnauthorized, "failed to validate tokens: %v", refreshErr)
+				models.APIResponse{
+					Status:  http.StatusUnauthorized,
+					Message: fmt.Sprintf("failed to validate tokens: %v", refreshErr),
+				}.Send(ctx)
+
 				ctx.Abort()
 				return
 			}
@@ -65,14 +70,22 @@ func Auth(conf *config.Config) gin.HandlerFunc {
 			// renew tokens
 			accessToken, err := utils.GenTokenString(conf.JwtSecretKey(), username, utils.ACCESS_TOKEN_DUR)
 			if err != nil {
-				ctx.String(http.StatusInternalServerError, "failed to gen access token: %v", err)
+				models.APIResponse{
+					Status:  http.StatusInternalServerError,
+					Message: fmt.Sprintf("failed to gen access token: %v", err),
+				}.Send(ctx)
+
 				ctx.Abort()
 				return
 			}
 
 			refreshToken, err := utils.GenTokenString(conf.JwtSecretKey(), username, utils.REFRESH_TOKEN_DUR)
 			if err != nil {
-				ctx.String(http.StatusInternalServerError, "failed to gen refresh token: %v", err)
+				models.APIResponse{
+					Status:  http.StatusInternalServerError,
+					Message: fmt.Sprintf("failed to gen refresh token: %v", err),
+				}.Send(ctx)
+
 				ctx.Abort()
 				return
 			}
@@ -81,6 +94,7 @@ func Auth(conf *config.Config) gin.HandlerFunc {
 			ctx.SetCookie(utils.REFRESH_TOKEN_KEY, refreshToken, int(utils.REFRESH_TOKEN_DUR), "/", "", true, true)
 		}
 
+		ctx.Set("username", username)
 		ctx.Next()
 	}
 }

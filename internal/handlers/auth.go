@@ -14,17 +14,29 @@ import (
 
 func checkUserPostBody(ctx *gin.Context, user *models.User) error {
 	if err := ctx.Bind(&user); err != nil {
-		ctx.String(http.StatusBadRequest, "failed to receive user info: %v", err)
+		models.APIResponse{
+			Status:  http.StatusBadRequest,
+			Message: fmt.Sprintf("failed to receive user info: %v", err),
+		}.Send(ctx)
+
 		return fmt.Errorf("failed to bind user body")
 	}
 
 	if len(user.Username) < 4 {
-		ctx.String(http.StatusBadRequest, "username must be longer than 4")
+		models.APIResponse{
+			Status:  http.StatusBadRequest,
+			Message: "short username",
+		}.Send(ctx)
+
 		return fmt.Errorf("short username")
 	}
 
 	if len(user.Password) < 8 {
-		ctx.String(http.StatusBadRequest, "password must be longer than 8")
+		models.APIResponse{
+			Status:  http.StatusBadRequest,
+			Message: "short password",
+		}.Send(ctx)
+
 		return fmt.Errorf("short password")
 	}
 
@@ -62,38 +74,62 @@ func Login(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 		// check password
 		dbuser, err := pg.QueryUser(user.Username)
 		if err != nil {
-			ctx.String(http.StatusInternalServerError, "incorrect username or password")
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "incorrect username or password",
+			}.Send(ctx)
+
 			return
 		}
 
 		if res := utils.CheckPasswordHash(dbuser.Password, user.Password); !res {
-			ctx.String(http.StatusBadRequest, "incorrect username or password")
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "incorrect username or password",
+			}.Send(ctx)
+
 			return
 		}
 
 		accessToken, err := utils.GenTokenString(conf.JwtSecretKey(), user.Username, utils.ACCESS_TOKEN_DUR)
 		if err != nil {
-			ctx.String(http.StatusInternalServerError, "failed to gen access token: %v", err)
+			models.APIResponse{
+				Status:  http.StatusInternalServerError,
+				Message: fmt.Sprintf("failed to gen access token: %v", err),
+			}.Send(ctx)
+
 			return
 		}
 
 		refreshToken, err := utils.GenTokenString(conf.JwtSecretKey(), user.Username, utils.REFRESH_TOKEN_DUR)
 		if err != nil {
-			ctx.String(http.StatusInternalServerError, "failed to gen refresh token: %v", err)
+			models.APIResponse{
+				Status:  http.StatusInternalServerError,
+				Message: fmt.Sprintf("failed to gen refresh token: %v", err),
+			}.Send(ctx)
+
 			return
 		}
 
 		ctx.SetCookie(utils.ACCESS_TOKEN_KEY, accessToken, int(utils.ACCESS_TOKEN_DUR), "/", "", true, true)
 		ctx.SetCookie(utils.REFRESH_TOKEN_KEY, refreshToken, int(utils.REFRESH_TOKEN_DUR), "/", "", true, true)
 
-		ctx.String(http.StatusOK, "ok")
+		models.APIResponse{
+			Status:  http.StatusOK,
+			Message: "ok",
+		}.Send(ctx)
 	}
 }
 
 func Logout() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.SetCookie(utils.ACCESS_TOKEN_KEY, "", -1, "/", "", true, true)
-		ctx.SetCookie(utils.REFRESH_TOKEN_KEY, "'", -1, "/", "", true, true)
+		ctx.SetCookie(utils.REFRESH_TOKEN_KEY, "", -1, "/", "", true, true)
 		ctx.String(http.StatusOK, "ok")
+
+		models.APIResponse{
+			Status:  http.StatusOK,
+			Message: "ok",
+		}.Send(ctx)
 	}
 }

@@ -7,6 +7,11 @@ import (
 )
 
 func (pg *Postgres) InsertUser(user models.User) error {
+	_, err := pg.QueryUser(user.Username)
+	if err == nil {
+		return fmt.Errorf("username already exists")
+	}
+
 	hashedPass, err := utils.HashPassword(user.Password)
 	if err != nil {
 		return fmt.Errorf("failed to hash pasword: %v", err)
