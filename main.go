@@ -1,17 +1,19 @@
 package main
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"kmem/internal/config"
+	"kmem/internal/router"
+	"log"
 )
 
 func main() {
-	r := gin.Default()
+	// load config
+	conf, err := config.Load("config.yml")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	r.GET("ping", func(ctx *gin.Context) {
-		ctx.String(http.StatusOK, "pong")
-	})
-
-	r.Run(":8000")
+	if err := router.Setup().Run(conf.ServerPort()); err != nil {
+		log.Fatal(err)
+	}
 }
