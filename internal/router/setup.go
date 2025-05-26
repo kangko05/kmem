@@ -3,7 +3,6 @@ package router
 import (
 	"kmem/internal/config"
 	"kmem/internal/db"
-	"kmem/internal/handlers"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,8 +25,8 @@ func ping(ctx *gin.Context) {
 func setupAuth(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
 	gr := router.Group("auth")
 	{
-		gr.POST("signup", handlers.Signup(pg))
-		gr.POST("login", handlers.Login(pg, conf))
-		gr.GET("logout", handlers.Logout())
+		gr.POST("signup", signup(pg))
+		gr.POST("login", login(pg, conf))
+		gr.GET("logout", logout())
 	}
 }
