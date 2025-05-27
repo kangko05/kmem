@@ -117,6 +117,10 @@ func login(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 		ctx.SetCookie(utils.ACCESS_TOKEN_KEY, accessToken, int(utils.ACCESS_TOKEN_DUR), "/", "", false, true)
 		ctx.SetCookie(utils.REFRESH_TOKEN_KEY, refreshToken, int(utils.REFRESH_TOKEN_DUR), "/", "", false, true)
 
+		if err := pg.UpdateLastLogin(user.Username); err != nil {
+			log.Printf("failed to update last login for user %s: %v", user.Username, err)
+		}
+
 		models.APIResponse{
 			Status:  http.StatusOK,
 			Message: "ok",

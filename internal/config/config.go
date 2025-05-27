@@ -17,8 +17,9 @@ type PostgresConfig struct {
 }
 
 type ServerConfig struct {
-	Port      int    `yaml:"port"`
-	JwtSecret string `yaml:"jwtSecret"`
+	Port       int    `yaml:"port"`
+	JwtSecret  string `yaml:"jwtSecret"`
+	UploadPath string `yaml:"uploadPath"`
 	// AccessTokenDur   int    `yaml:"accessTokenDur"`  // in min
 	// RefreeshTokenDur int    `yaml:"refreshTokenDur"` // in min
 }
@@ -30,7 +31,8 @@ type Config struct {
 
 func prepare(configPath string) error {
 	sc := ServerConfig{
-		Port: 8000,
+		Port:       8000,
+		UploadPath: "/home/kang/Downloads/uploads",
 	}
 
 	pg := PostgresConfig{Host: "localhost",
@@ -111,4 +113,8 @@ func (c *Config) PostgresConnStr() string {
 
 func (c *Config) JwtSecretKey() string {
 	return c.Server.JwtSecret
+}
+
+func (c *Config) UploadPath() string {
+	return c.Server.UploadPath
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kmem/internal/models"
 	"kmem/internal/utils"
+	"time"
 )
 
 func (pg *Postgres) InsertUser(user models.User) error {
@@ -29,4 +30,8 @@ func (pg *Postgres) QueryUser(username string) (models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (pg *Postgres) UpdateLastLogin(username string) error {
+	return pg.Exec(`UPDATE users SET last_login=$1 WHERE username=$2`, time.Now(), username)
 }
