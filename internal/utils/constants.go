@@ -11,3 +11,8 @@ const (
 	ACCESS_TOKEN_KEY  = "accessToken"
 	REFRESH_TOKEN_KEY = "refreshToken"
 )
+
+// gin context
+const (
+	USERNAME_KEY = "username"
+)

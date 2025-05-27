@@ -171,6 +171,41 @@ func validateToken(ctx *gin.Context, cookieName, jwtSecret string) (string, erro
 	return username, nil
 }
 
+func me() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		v, ok := ctx.Get(utils.USERNAME_KEY)
+		if !ok {
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "unauthorized",
+			}.Send(ctx)
+			return
+		}
+
+		username, ok := v.(string)
+		if !ok {
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "unauthorized",
+			}.Send(ctx)
+			return
+		}
+
+		if len(username) < 4 {
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "unauthorized",
+			}.Send(ctx)
+			return
+		}
+
+		models.APIResponse{
+			Status:  http.StatusOK,
+			Message: "ok",
+		}.Send(ctx)
+	}
+}
+
 // check access token & refresh token from cookies
 // if access token is expired, refresh
 func authMiddleware(conf *config.Config) gin.HandlerFunc {
@@ -220,7 +255,7 @@ func authMiddleware(conf *config.Config) gin.HandlerFunc {
 			ctx.SetCookie(utils.REFRESH_TOKEN_KEY, refreshToken, int(utils.REFRESH_TOKEN_DUR), "/", "", false, true)
 		}
 
-		ctx.Set("username", username)
+		ctx.Set(utils.USERNAME_KEY, username)
 		ctx.Next()
 	}
 }
