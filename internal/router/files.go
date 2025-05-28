@@ -5,7 +5,6 @@ import (
 	"io"
 	"kmem/internal/config"
 	"kmem/internal/models"
-	"kmem/internal/utils"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,25 +14,27 @@ import (
 
 func upload(conf *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		v, ok := ctx.Get(utils.USERNAME_KEY)
-		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "failed to authorize",
-			}.Send(ctx)
+		// v, ok := ctx.Get(utils.USERNAME_KEY)
+		// if !ok {
+		// 	models.APIResponse{
+		// 		Status:  http.StatusUnauthorized,
+		// 		Message: "failed to authorize",
+		// 	}.Send(ctx)
+		//
+		// 	return
+		// }
+		//
+		// username, ok := v.(string)
+		// if !ok {
+		// 	models.APIResponse{
+		// 		Status:  http.StatusUnauthorized,
+		// 		Message: "failed to authorize",
+		// 	}.Send(ctx)
+		//
+		// 	return
+		// }
 
-			return
-		}
-
-		username, ok := v.(string)
-		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "failed to authorize",
-			}.Send(ctx)
-
-			return
-		}
+		username := "testuser"
 
 		encodedName := ctx.Query("filename")
 		if len(encodedName) == 0 {
