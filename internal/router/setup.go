@@ -25,7 +25,7 @@ func Setup(pg *db.Postgres, conf *config.Config) *gin.Engine {
 	router.GET("ping", ping) // for test & health check
 
 	setupAuth(router, pg, conf)
-	setupFiles(router, conf)
+	setupFiles(router, pg, conf)
 
 	return router
 }
@@ -44,10 +44,10 @@ func setupAuth(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
 	}
 }
 
-func setupFiles(router *gin.Engine, conf *config.Config) {
+func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
 	gr := router.Group("files")
-	// gr.Use(authMiddleware(conf))
+	gr.Use(authMiddleware(conf))
 	{
-		gr.POST("upload", upload(conf))
+		gr.POST("upload", upload(pg, conf))
 	}
 }

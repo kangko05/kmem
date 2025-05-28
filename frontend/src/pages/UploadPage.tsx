@@ -1,89 +1,128 @@
 import { useState, type ChangeEvent } from "react";
-import { PageLayout, FileInput } from "../components";
+import { PageLayout, FileInput, FileCard, type IFile } from "../components";
 import { axiosInstance } from "../utils";
-import { X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-
-interface FileCardProps {
-  file: File;
-  onRemove: () => void;
-}
-
-export const FileCard = ({ file, onRemove }: FileCardProps) => {
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) return "🖼️";
-    if (type.startsWith("video/")) return "🎥";
-    return "📄";
-  };
-
-  return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span className="text-xl">{getFileIcon(file.type)}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{file.name}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
-        </div>
-      </div>
-      <button
-        onClick={onRemove}
-        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-      >
-        <X className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
 
 export const UploadPage = () => {
   useAuth();
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<IFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const handleFileChange = async (ev: ChangeEvent<HTMLInputElement>) => {
-    const selectedfiles = ev.target.files;
-    if (!selectedfiles) return;
-    setFiles([...files, ...Array.from(selectedfiles)]);
+  const handleFileChange = (ev: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = ev.target.files;
+    if (!selectedFiles) return;
+
+    const newFiles = Array.from(selectedFiles).map(
+      (file): IFile => ({
+        id: `${Date.now()}-${Math.random()}`,
+        fileobj: file,
+        status: "pending",
+      })
+    );
+
+    setFiles((prev) => [...prev, ...newFiles]);
+  };
+
+  const updateFileStatus = (fileId: string, status: IFile["status"], msg?: string) => {
+    setFiles((prev) => prev.map((file) => (file.id == fileId ? { ...file, status, msg } : file)));
+  };
+
+  const uploadFile = async (file: IFile) => {
+    try {
+      updateFileStatus(file.id, "uploading");
+
+      const encodedFilename = btoa(encodeURIComponent(file.fileobj.name));
+
+      const resp = await axiosInstance.post(
+        `/files/upload?filename=${encodedFilename}`,
+        file.fileobj
+      );
+
+      if (resp.status === 200) {
+        updateFileStatus(file.id, "success");
+      } else {
+        updateFileStatus(file.id, "error");
+      }
+    } catch (err) {
+      console.error("Upload failed:", file.fileobj.name, err);
+
+      if (err?.response?.data?.message?.includes("file already exists")) {
+        updateFileStatus(file.id, "error", "file exists");
+      } else {
+        updateFileStatus(file.id, "error");
+      }
+    }
   };
 
   const handleClick = async () => {
     if (files.length == 0) return;
+
     setUploading(true);
-    for (let i = 0; i < files.length; i += 3) {
-      const start = i;
-      const end = Math.min(i + 3, files.length);
-      const batch = files.slice(start, end);
-      const promises = batch.map((file) => axiosInstance.post("/files/upload", file));
-      await Promise.all(promises);
+
+    const batchSize = 3;
+    const pendingFiles = files.filter((f) => f.status == "pending" || f.status == "error");
+
+    for (let i = 0; i < pendingFiles.length; i += batchSize) {
+      const batch = pendingFiles.slice(i, i + batchSize);
+      const promises = batch.map((file) => uploadFile(file));
+
+      await Promise.allSettled(promises);
     }
+
     setUploading(false);
   };
 
-  const handleRemove = (filename: string) => {
-    const filtered = files.filter((file) => file.name != filename);
-    setFiles([...filtered]);
+  const handleRemove = (fileId: string) => {
+    setFiles((prev) => prev.filter((file) => file.id !== fileId));
   };
+
+  const getUploadStats = () => {
+    const total = files.length;
+    const success = files.filter((f) => f.status == "success").length;
+    const error = files.filter((f) => f.status == "error").length;
+    const uploading = files.filter((f) => f.status == "uploading").length;
+
+    return { total, success, error, uploading };
+  };
+
+  const stats = getUploadStats();
+  const hasFailedFiles = stats.error > 0;
+  const allCompleted = stats.success + stats.error === stats.total && stats.total > 0;
 
   return (
     <PageLayout>
       <div className="w-full max-w-2xl mx-auto p-6">
         {files.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
-              selected {files.length} files
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                Selected {stats.total} files
+              </h2>
+
+              <div className="flex items-center gap-4">
+                {(uploading || allCompleted) && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-green-600 dark:text-green-400">✓ {stats.success}</span>
+                    {stats.error > 0 && (
+                      <span className="text-red-600 dark:text-red-400 ml-2">✗ {stats.error}</span>
+                    )}
+                    {stats.uploading > 0 && (
+                      <span className="text-blue-600 dark:text-blue-400 ml-2">
+                        ⏳ {stats.uploading}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p onClick={() => setFiles([])} className="text-red-400 cursor-pointer">
+                  clear
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-3 max-h-64 overflow-y-auto">
-              {files.map((file, idx) => (
-                <FileCard key={idx} file={file} onRemove={() => handleRemove(file.name)} />
+              {files.map((file) => (
+                <FileCard key={file.id} file={file} onRemove={() => handleRemove(file.id)} />
               ))}
             </div>
           </div>
@@ -93,15 +132,27 @@ export const UploadPage = () => {
           <FileInput onChange={handleFileChange} />
 
           {files.length > 0 && (
-            <button
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 
-                        text-white font-semibold py-3 px-4 rounded-lg 
-                        transition-colors duration-200 disabled:cursor-not-allowed"
-              onClick={handleClick}
-              disabled={uploading}
-            >
-              {uploading ? "Uploading..." : `Upload ${files.length} files`}
-            </button>
+            <div className="space-y-2">
+              <button
+                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 
+                          text-white font-semibold py-3 px-4 rounded-lg 
+                          transition-colors duration-200 disabled:cursor-not-allowed"
+                onClick={handleClick}
+                disabled={uploading}
+              >
+                {uploading
+                  ? `Uploading... (${stats.success + stats.error}/${stats.total})`
+                  : hasFailedFiles
+                    ? `Retry Failed Files (${stats.error})`
+                    : `Upload ${files.filter((f) => f.status == "pending").length} files`}
+              </button>
+
+              {allCompleted && stats.success > 0 && (
+                <div className="text-center text-sm text-green-600 dark:text-green-400">
+                  {stats.success} files uploaded successfully!
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

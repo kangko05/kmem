@@ -29,15 +29,35 @@ func Connect(conf *config.Config) (*Postgres, error) {
 	return pg, nil
 }
 
-// users
 func (pg *Postgres) initTables() error {
-	return pg.Exec(`CREATE TABLE IF NOT EXISTS users(
+	err := pg.Exec(`CREATE TABLE IF NOT EXISTS users(
 		id SERIAL PRIMARY KEY,
 		username VARCHAR(20) NOT NULL UNIQUE,
 		password VARCHAR(255) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		last_login TIMESTAMP
 	)`)
+	if err != nil {
+		return fmt.Errorf("failed to init users table: %v", err)
+	}
+
+	err = pg.Exec(`CREATE TABLE IF NOT EXISTS files(
+		id SERIAL PRIMARY KEY,
+		hash VARCHAR(255) NOT NULL UNIQUE,
+		username VARCHAR(20) NOT NULL,
+		original_name VARCHAR(255) NOT NULL,
+		stored_name VARCHAR(255) NOT NULL,
+		file_path VARCHAR(255) NOT NULL,
+		file_size BIGINT,
+		mime_type VARCHAR(32),
+		uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (username) REFERENCES users(username)
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to init files table: %v", err)
+	}
+
+	return nil
 }
 
 func (pg *Postgres) Ping() error {

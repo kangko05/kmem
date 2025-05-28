@@ -7,6 +7,7 @@ import (
 
 type File struct {
 	ID           int       `json:"id" db:"id"`
+	Hash         string    `json:"hash" db:"hash"` // md5
 	Username     string    `json:"username" db:"username"`
 	OriginalName string    `json:"originalName" db:"original_name"`
 	StoredName   string    `json:"storedName" db:"stored_name"`
