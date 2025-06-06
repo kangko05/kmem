@@ -14,5 +14,6 @@ const (
 
 // gin context
 const (
-	USERNAME_KEY = "username"
+	USERNAME_KEY  = "username"
+	DEAFULT_LIMIT = 20
 )

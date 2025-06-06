@@ -23,6 +23,7 @@ func Setup(pg *db.Postgres, conf *config.Config) *gin.Engine {
 	}))
 
 	router.GET("ping", ping) // for test & health check
+	router.StaticFS("static", http.Dir(conf.UploadPath()))
 
 	setupAuth(router, pg, conf)
 	setupFiles(router, pg, conf)
@@ -48,6 +49,7 @@ func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
 	gr := router.Group("files")
 	gr.Use(authMiddleware(conf))
 	{
+		gr.GET("", servFiles(pg, conf))
 		gr.POST("upload", upload(pg, conf))
 	}
 }
