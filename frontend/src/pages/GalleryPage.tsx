@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useInfiniteQuery } from "react-query";
 import { BeatLoader } from "react-spinners";
 import { useState, useEffect, type ChangeEvent, type ReactNode } from "react";
+import { Settings2 } from "lucide-react";
 
 type Tsort = "date" | "name";
 type Ttype = "all" | "image" | "video";
@@ -25,6 +26,7 @@ export const Lightbox = ({
   onClose: () => void;
 }) => {
   const [currentIdx, setCurrentIdx] = useState(idx);
+  const [openSettings, setOpenSettings] = useState(false);
 
   useEffect(() => {
     setCurrentIdx(idx);
@@ -63,6 +65,20 @@ export const Lightbox = ({
       className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
       onClick={onClose}
     >
+      <Settings2
+        className="absolute top-10 left-10 cursor-pointer"
+        onClick={(ev) => {
+          ev.stopPropagation();
+          setOpenSettings(!openSettings);
+        }}
+      />
+
+      {openSettings && (
+        <ul className="absolute top-20 left-10 bg-red-100">
+          <li>Delete</li>
+        </ul>
+      )}
+
       {canGoPrev && (
         <button
           onClick={(e) => {
