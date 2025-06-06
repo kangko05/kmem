@@ -12,9 +12,105 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+func getLimitPageQuery(limitStr, pageStr string) (int, int) {
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = utils.DEAFULT_LIMIT
+	}
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		page = 0
+	}
+
+	return limit, page
+}
+
+// get limit & offset & page through query
+func servFiles(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		val, ok := ctx.Get(utils.USERNAME_KEY)
+		if !ok {
+			models.APIResponse{
+				Status:  http.StatusUnauthorized,
+				Message: "failed to get username",
+			}.Send(ctx)
+			return
+		}
+
+		username := val.(string)
+
+		limit, page := getLimitPageQuery(ctx.Query("limit"), ctx.Query("page"))
+
+		sort := ctx.Query("sort")
+		if len(sort) == 0 {
+			sort = "date"
+		}
+
+		typeStr := ctx.Query("type")
+		if len(typeStr) == 0 {
+			typeStr = "all"
+		}
+
+		if len(username) == 0 {
+			models.APIResponse{
+				Status:  http.StatusBadRequest,
+				Message: "failed to get username",
+			}.Send(ctx)
+			return
+		}
+
+		dbfiles, err := pg.GetFilesPage(username, page, limit, sort, typeStr)
+		if err != nil {
+			models.APIResponse{
+				Status:  http.StatusInternalServerError,
+				Message: err.Error(),
+			}.Send(ctx)
+			return
+		}
+
+		totalFiles, err := pg.GetFilesCount(username, typeStr)
+		if err != nil {
+			models.APIResponse{
+				Status:  http.StatusInternalServerError,
+				Message: err.Error(),
+			}.Send(ctx)
+			return
+		}
+
+		var files []models.File
+		for _, f := range dbfiles {
+			after, ok := strings.CutPrefix(f.FilePath, conf.UploadPath())
+			if ok {
+				files = append(files, models.File{
+					OriginalName: f.OriginalName,
+					FilePath:     after,
+					MimeType:     f.MimeType,
+				})
+			}
+		}
+
+		type Page struct {
+			Files    []models.File `json:"files"`
+			HasNext  bool          `json:"hasNext"`
+			NextPage int           `json:"nextPage"`
+		}
+
+		pageResponse := Page{
+			Files:    files,
+			HasNext:  (page+1)*limit < totalFiles,
+			NextPage: page + 1,
+		}
+
+		ctx.JSON(http.StatusOK, pageResponse)
+	}
+}
 
 func upload(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
