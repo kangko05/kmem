@@ -12,6 +12,7 @@ type File struct {
 	OriginalName string    `json:"originalName" db:"original_name"`
 	StoredName   string    `json:"storedName" db:"stored_name"`
 	FilePath     string    `json:"filePath" db:"file_path"`
+	RelativePath string    `json:"relativePath" db:"relative_path"`
 	FileSize     int64     `json:"fileSize" db:"file_size"`
 	MimeType     string    `json:"mimeType" db:"mime_type"`
 	UploadedAt   time.Time `json:"uploadedAt" db:"uploaded_at"`
@@ -42,6 +43,7 @@ func (f *File) GetFileType() string {
 	if f.IsVideo() {
 		return "video"
 	}
+
 	return "other"
 }
 
@@ -75,9 +77,16 @@ type FileUploadResponse struct {
 	FileType     string `json:"fileType"` // "image", "video", "other"
 }
 
-// type FileListResponse struct {
-// 	Files      []File `json:"files"`
-// 	TotalCount int    `json:"totalCount"`
-// 	Page       int    `json:"page"`
-// 	Limit      int    `json:"limit"`
-// }
+type FileResponse struct {
+	OriginalName string                       `json:"originalName,omitempty"`
+	MimeType     string                       `json:"mimeType,omitempty"`
+	FilePath     string                       `json:"filePath,omitempty"` // rel path
+	Thumbnails   map[string]ThumbnailResponse `json:"thumbnails,omitempty"`
+}
+
+type FileListResponse struct {
+	Files      []File `json:"files"`
+	TotalCount int    `json:"totalCount"`
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
+}

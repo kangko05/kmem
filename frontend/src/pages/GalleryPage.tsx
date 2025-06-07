@@ -10,10 +10,16 @@ import { Settings2 } from "lucide-react";
 type Tsort = "date" | "name";
 type Ttype = "all" | "image" | "video";
 
+interface Ithumb {
+  sizeName: string;
+  filePath: string;
+}
+
 interface Ifile {
   originalName: string;
   mimeType: string;
   filePath: string;
+  thumbnails: { [key: string]: Ithumb };
 }
 
 export const Lightbox = ({
@@ -119,7 +125,7 @@ export const Lightbox = ({
 
         {currentFile.mimeType.includes("image") && (
           <img
-            src={`${SERVER}/static${currentFile.filePath}`}
+            src={`${SERVER}${currentFile.filePath}`}
             alt={currentFile.originalName}
             className="max-w-full max-h-[90vh] object-contain"
             onClick={(e) => e.stopPropagation()}
@@ -133,7 +139,7 @@ export const Lightbox = ({
             controls
             onClick={(e) => e.stopPropagation()}
           >
-            <source src={`${SERVER}/static${currentFile.filePath}`} />
+            <source src={`${SERVER}${currentFile.filePath}`} type={currentFile.mimeType} />
           </video>
         )}
 
@@ -162,7 +168,7 @@ const RenderContents = ({
   name: string;
   onImageClick: (idx: number) => void;
 }) => {
-  const contentSrc = `${SERVER}/static${src}`;
+  const contentSrc = `${SERVER}${src}`;
 
   if (mimetype.includes("image")) {
     return (
@@ -176,6 +182,17 @@ const RenderContents = ({
   }
 
   if (mimetype.includes("video")) {
+    if (src.endsWith("jpg")) {
+      return (
+        <img
+          key={idx}
+          src={contentSrc}
+          className="w-full h-full object-cover"
+          onClick={() => onImageClick(idx)}
+        />
+      );
+    }
+
     return (
       <video
         muted
@@ -197,6 +214,14 @@ const GalleryItem = ({
   idx: number;
   onImageClick: (idx: number) => void;
 }) => {
+  let src = it.filePath;
+
+  if (it.thumbnails?.small) {
+    src = it.thumbnails.small.filePath;
+  } else if (it.thumbnails?.medium) {
+    src = it.thumbnails.medium.filePath;
+  }
+
   return (
     <div
       key={idx}
@@ -206,7 +231,7 @@ const GalleryItem = ({
         {RenderContents({
           idx: idx,
           mimetype: it.mimeType,
-          src: it.filePath,
+          src: src,
           name: it.originalName,
           onImageClick: onImageClick,
         })}
@@ -308,10 +333,10 @@ export const GalleryPage = () => {
   } = useInfiniteQuery({
     queryKey: ["gallery", sort, type],
     queryFn: ({ pageParam = 0 }) => fetchPage(pageParam),
-    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.nextPage : undefined),
+    getNextPageParam: (lastPage) => (lastPage.data.hasNext ? lastPage.data.nextPage : undefined),
   });
 
-  const files = data?.pages.flatMap((page) => page.files) || [];
+  const files = data?.pages.flatMap((page) => page.data.files || []) || [];
 
   const handleImageClick = (idx: number) => {
     setLightboxIdx(idx);
