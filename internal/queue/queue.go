@@ -8,7 +8,8 @@ import (
 type QueueItemType uint
 
 const (
-	GEN_THUMBNAILS QueueItemType = iota
+	Q_TEST_ITEM    QueueItemType = iota
+	GEN_THUMBNAILS QueueItemType = iota + 1
 )
 
 type QueueItem struct {
@@ -17,6 +18,7 @@ type QueueItem struct {
 
 func (it *QueueItem) process() {
 	switch it.itemType {
+	case Q_TEST_ITEM:
 	case GEN_THUMBNAILS:
 		// gen thumbnails
 	}
