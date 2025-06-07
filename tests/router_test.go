@@ -14,7 +14,7 @@ import (
 )
 
 func TestPing(t *testing.T) {
-	router := router.Setup(testDB, testConfig)
+	router := router.Setup(testDB, testConfig, testQueue)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/ping", nil)
@@ -27,7 +27,7 @@ func TestPing(t *testing.T) {
 func TestSignupSuccess(t *testing.T) {
 	cleanupTables(t)
 
-	router := router.Setup(testDB, testConfig)
+	router := router.Setup(testDB, testConfig, testQueue)
 	testUser := models.User{
 		Username: "testuser",
 		Password: "testpassword123",
@@ -51,7 +51,7 @@ func TestSignupSuccess(t *testing.T) {
 func TestSignupValidation(t *testing.T) {
 	cleanupTables(t)
 
-	router := router.Setup(testDB, testConfig)
+	router := router.Setup(testDB, testConfig, testQueue)
 
 	tests := []struct {
 		name string
@@ -79,7 +79,7 @@ func TestSignupValidation(t *testing.T) {
 func TestLogin(t *testing.T) {
 	cleanupTables(t)
 
-	router := router.Setup(testDB, testConfig)
+	router := router.Setup(testDB, testConfig, testQueue)
 	testUser := models.User{
 		Username: "testuser",
 		Password: "testpassword123",
@@ -109,7 +109,7 @@ func TestLogin(t *testing.T) {
 func TestLoginWrongCredentials(t *testing.T) {
 	cleanupTables(t)
 
-	router := router.Setup(testDB, testConfig)
+	router := router.Setup(testDB, testConfig, testQueue)
 
 	wrongUser := models.User{
 		Username: "wronguser",

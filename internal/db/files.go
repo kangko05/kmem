@@ -1,45 +1,35 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"kmem/internal/models"
 	"log"
 )
 
-func (pg *Postgres) InsertFile(file models.File) error {
-	result, err := pg.conn.Exec(`
-	INSERT INTO files(username,hash,original_name,stored_name,file_path,file_size,mime_type)
-	VALUES($1,$2,$3,$4,$5,$6,$7)
-	ON CONFLICT (hash) DO NOTHING
-	`, file.Username, file.Hash, file.OriginalName, file.StoredName, file.FilePath, file.FileSize, file.MimeType)
+func (pg *Postgres) InsertFile(file models.File) (int, error) {
+	var fileId int
+	err := pg.conn.QueryRow(`
+	INSERT INTO files(username,hash,original_name,stored_name,file_path,relative_path,file_size,mime_type)
+	VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+	RETURNING id
+	`, file.Username, file.Hash, file.OriginalName, file.StoredName, file.FilePath, file.RelativePath, file.FileSize, file.MimeType).Scan(&fileId)
 
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
+	// rowsAffected, err := result.RowsAffected()
+	// if err != nil {
+	// 	return -1, err
+	// }
+	//
+	// if rowsAffected == 0 {
+	// 	return -1, fmt.Errorf("file already exists")
+	// }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("file already exists")
-	}
-
-	return nil
+	return fileId, nil
 }
-
-// type File struct {
-// 	ID           int       `json:"id" db:"id"`
-// 	Hash         string    `json:"hash" db:"hash"` // md5
-// 	Username     string    `json:"username" db:"username"`
-// 	OriginalName string    `json:"originalName" db:"original_name"`
-// 	StoredName   string    `json:"storedName" db:"stored_name"`
-// 	FilePath     string    `json:"filePath" db:"file_path"`
-// 	FileSize     int64     `json:"fileSize" db:"file_size"`
-// 	MimeType     string    `json:"mimeType" db:"mime_type"`
-// 	UploadedAt   time.Time `json:"uploadedAt" db:"uploaded_at"`
-// }
 
 func (pg *Postgres) GetFilesCount(username, typeStr string) (int, error) {
 	whereClause := "WHERE username=$1"
@@ -60,7 +50,7 @@ func (pg *Postgres) GetFilesCount(username, typeStr string) (int, error) {
 	return count, nil
 }
 
-func (pg *Postgres) GetFilesPage(username string, page, limit int, sort, typeStr string) ([]models.File, error) {
+func (pg *Postgres) GetFilesPage(username string, page, limit int, sort, typeStr string) ([]models.FileResponse, error) {
 	offset := page * limit
 
 	orderby := "uploaded_at DESC" // default
@@ -79,11 +69,14 @@ func (pg *Postgres) GetFilesPage(username string, page, limit int, sort, typeStr
 	}
 
 	query := fmt.Sprintf(`
-		SELECT original_name,file_path,mime_type FROM files
-		%s
-		ORDER BY %s
-		LIMIT $%d
-		OFFSET $%d
+		SELECT f.id,f.original_name,f.relative_path,f.mime_type,t.size_name,t.relative_path FROM (
+			SELECT id, original_name, relative_path, mime_type
+        	FROM files 
+        	%s
+        	ORDER BY %s
+        	LIMIT $%d OFFSET $%d
+		) AS f
+		LEFT JOIN thumbnails AS t ON f.id=t.file_id
 	`, whereClause, orderby, len(args)+1, len(args)+2)
 
 	args = append(args, limit, offset)
@@ -94,39 +87,63 @@ func (pg *Postgres) GetFilesPage(username string, page, limit int, sort, typeStr
 	}
 	defer rows.Close()
 
-	var files []models.File
+	filesMap := make(map[int]models.FileResponse)
 	for rows.Next() {
-		var file models.File
-		if err := rows.Scan(&file.OriginalName, &file.FilePath, &file.MimeType); err != nil {
+		var id int
+		var file models.FileResponse
+
+		file.Thumbnails = make(map[string]models.ThumbnailResponse)
+
+		var sizeName, thumbPath sql.NullString
+
+		if err := rows.Scan(&id, &file.OriginalName, &file.FilePath, &file.MimeType, &sizeName, &thumbPath); err != nil {
 			log.Println(err)
 			continue
 		}
-		files = append(files, file)
+
+		var thumb models.ThumbnailResponse
+		if sizeName.Valid && thumbPath.Valid {
+			thumb.SizeName = sizeName.String
+			thumb.FilePath = thumbPath.String
+		}
+
+		_, ok := filesMap[id]
+		if ok {
+			filesMap[id].Thumbnails[thumb.SizeName] = thumb
+		} else {
+			filesMap[id] = file
+		}
+	}
+
+	var files []models.FileResponse
+
+	for _, f := range filesMap {
+		files = append(files, f)
 	}
 
 	return files, nil
 }
 
-func (pg *Postgres) GetFiles(username string) ([]models.File, error) {
-	rows, err := pg.conn.Query(`
-		SELECT original_name,file_path,mime_type FROM files
-		WHERE username=$1
-	`, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get files for %s: %v", username, err)
-	}
-	defer rows.Close()
-
-	var files []models.File
-	for rows.Next() {
-		var file models.File
-		if err := rows.Scan(&file.OriginalName, &file.FilePath, &file.MimeType); err != nil {
-			log.Println(err)
-			continue
-		}
-
-		files = append(files, file)
-	}
-
-	return files, nil
-}
+// func (pg *Postgres) GetFiles(username string) ([]models.File, error) {
+// 	rows, err := pg.conn.Query(`
+// 		SELECT original_name,file_path,mime_type FROM files
+// 		WHERE username=$1
+// 	`, username)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get files for %s: %v", username, err)
+// 	}
+// 	defer rows.Close()
+//
+// 	var files []models.File
+// 	for rows.Next() {
+// 		var file models.File
+// 		if err := rows.Scan(&file.OriginalName, &file.FilePath, &file.MimeType); err != nil {
+// 			log.Println(err)
+// 			continue
+// 		}
+//
+// 		files = append(files, file)
+// 	}
+//
+// 	return files, nil
+// }

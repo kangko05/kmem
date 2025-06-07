@@ -15,28 +15,29 @@ import (
 
 func checkUserPostBody(ctx *gin.Context, user *models.User) error {
 	if err := ctx.Bind(&user); err != nil {
-		models.APIResponse{
-			Status:  http.StatusBadRequest,
-			Message: fmt.Sprintf("failed to receive user info: %v", err),
-		}.Send(ctx)
+		models.ErrorResponse(
+			http.StatusBadRequest,
+			models.ErrInvalidInput,
+			"invalid request format",
+		).Send(ctx)
 
 		return fmt.Errorf("failed to bind user body")
 	}
 
 	if len(user.Username) < 4 {
-		models.APIResponse{
-			Status:  http.StatusBadRequest,
-			Message: "short username",
-		}.Send(ctx)
+		models.ErrorResponse(
+			http.StatusBadRequest,
+			models.ErrInvalidInput,
+			"user name must be at least 4 characters",
+		).Send(ctx)
 
 		return fmt.Errorf("short username")
 	}
 
 	if len(user.Password) < 8 {
-		models.APIResponse{
-			Status:  http.StatusBadRequest,
-			Message: "short password",
-		}.Send(ctx)
+		models.ErrorResponse(http.StatusBadRequest,
+			models.ErrInvalidInput,
+			"password must be at least 8 characters").Send(ctx)
 
 		return fmt.Errorf("short password")
 	}
@@ -56,11 +57,16 @@ func signup(pg *db.Postgres) gin.HandlerFunc {
 		}
 
 		if err := pg.InsertUser(user); err != nil {
-			ctx.String(http.StatusInternalServerError, "failed to insert user")
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to create user",
+			).Send(ctx)
+
 			return
 		}
 
-		ctx.String(http.StatusOK, "ok")
+		models.SuccessResponse(nil).Send(ctx)
 	}
 }
 
@@ -77,39 +83,43 @@ func login(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 		// check password
 		dbuser, err := pg.QueryUser(user.Username)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "incorrect username or password",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"incorrect username or password",
+			).Send(ctx)
 
 			return
 		}
 
 		if res := utils.CheckPasswordHash(dbuser.Password, user.Password); !res {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "incorrect username or password",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"incorrect username or password",
+			).Send(ctx)
 
 			return
 		}
 
 		accessToken, err := utils.GenTokenString(conf.JwtSecretKey(), user.Username, utils.ACCESS_TOKEN_DUR)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to gen access token: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrInvalidToken,
+				"failed to create token",
+			).Send(ctx)
 
 			return
 		}
 
 		refreshToken, err := utils.GenTokenString(conf.JwtSecretKey(), user.Username, utils.REFRESH_TOKEN_DUR)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to gen refresh token: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrInvalidToken,
+				"failed to create token",
+			).Send(ctx)
 
 			return
 		}
@@ -121,10 +131,7 @@ func login(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 			log.Printf("failed to update last login for user %s: %v", user.Username, err)
 		}
 
-		models.APIResponse{
-			Status:  http.StatusOK,
-			Message: "ok",
-		}.Send(ctx)
+		models.SuccessResponse(nil).Send(ctx)
 	}
 }
 
@@ -133,12 +140,8 @@ func logout() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.SetCookie(utils.ACCESS_TOKEN_KEY, "", -1, "/", "", false, true)
 		ctx.SetCookie(utils.REFRESH_TOKEN_KEY, "", -1, "/", "", false, true)
-		ctx.String(http.StatusOK, "ok")
 
-		models.APIResponse{
-			Status:  http.StatusOK,
-			Message: "ok",
-		}.Send(ctx)
+		models.SuccessResponse(nil).Send(ctx)
 	}
 }
 
@@ -179,34 +182,37 @@ func me() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		v, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "unauthorized",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrUnauthorized,
+				"user unauthorized",
+			).Send(ctx)
+
 			return
 		}
 
 		username, ok := v.(string)
 		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "unauthorized",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrUnauthorized,
+				"user unauthorized",
+			).Send(ctx)
+
 			return
 		}
 
 		if len(username) < 4 {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "unauthorized",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"user name must be at least 4 characters",
+			).Send(ctx)
+
 			return
 		}
 
-		models.APIResponse{
-			Status:  http.StatusOK,
-			Message: "ok",
-		}.Send(ctx)
+		models.SuccessResponse(nil).Send(ctx)
 	}
 }
 
@@ -223,35 +229,41 @@ func authMiddleware(conf *config.Config) gin.HandlerFunc {
 
 			username, refreshErr := validateToken(ctx, utils.REFRESH_TOKEN_KEY, jwtSecret)
 			if refreshErr != nil {
-				models.APIResponse{
-					Status:  http.StatusUnauthorized,
-					Message: fmt.Sprintf("failed to validate tokens: %v", refreshErr),
-				}.Send(ctx)
+				models.ErrorResponse(
+					http.StatusUnauthorized,
+					models.ErrInvalidToken,
+					"failed to validate token",
+				).Send(ctx)
 
 				ctx.Abort()
+
 				return
 			}
 
 			// renew tokens
 			accessToken, err := utils.GenTokenString(conf.JwtSecretKey(), username, utils.ACCESS_TOKEN_DUR)
 			if err != nil {
-				models.APIResponse{
-					Status:  http.StatusInternalServerError,
-					Message: fmt.Sprintf("failed to gen access token: %v", err),
-				}.Send(ctx)
+				models.ErrorResponse(
+					http.StatusInternalServerError,
+					models.ErrInvalidToken,
+					"failed to create token",
+				).Send(ctx)
 
 				ctx.Abort()
+
 				return
 			}
 
 			refreshToken, err := utils.GenTokenString(conf.JwtSecretKey(), username, utils.REFRESH_TOKEN_DUR)
 			if err != nil {
-				models.APIResponse{
-					Status:  http.StatusInternalServerError,
-					Message: fmt.Sprintf("failed to gen refresh token: %v", err),
-				}.Send(ctx)
+				models.ErrorResponse(
+					http.StatusInternalServerError,
+					models.ErrInvalidToken,
+					"failed to create token",
+				).Send(ctx)
 
 				ctx.Abort()
+
 				return
 			}
 

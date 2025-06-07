@@ -48,14 +48,34 @@ func (pg *Postgres) initTables() error {
 		original_name VARCHAR(255) NOT NULL,
 		stored_name VARCHAR(255) NOT NULL,
 		file_path VARCHAR(255) NOT NULL,
+		relative_path VARCHAR(255) NOT NULL,
 		file_size BIGINT,
 		mime_type VARCHAR(32),
 		uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (username) REFERENCES users(username)
+		FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
 	)`)
 	if err != nil {
 		return fmt.Errorf("failed to init files table: %v", err)
 	}
+
+	err = pg.Exec(`CREATE TABLE IF NOT EXISTS thumbnails(
+		id SERIAL PRIMARY KEY,
+		file_id INTEGER NOT NULL,
+		size_name VARCHAR(10) NOT NULL,
+		width INTEGER NOT NULL,
+		height INTEGER NOT NULL,
+		file_path VARCHAR(255) NOT NULL,
+		relative_path VARCHAR(255) NOT NULL,
+		file_size BIGINT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(file_id,size_name),
+		FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to init thumbnails table: %v", err)
+	}
+
+	// TODO: add index
 
 	return nil
 }

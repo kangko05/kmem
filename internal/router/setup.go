@@ -3,6 +3,7 @@ package router
 import (
 	"kmem/internal/config"
 	"kmem/internal/db"
+	"kmem/internal/queue"
 	"net/http"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(pg *db.Postgres, conf *config.Config) *gin.Engine {
+func Setup(pg *db.Postgres, conf *config.Config, q *queue.Queue) *gin.Engine {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
@@ -26,7 +27,7 @@ func Setup(pg *db.Postgres, conf *config.Config) *gin.Engine {
 	router.StaticFS("static", http.Dir(conf.UploadPath()))
 
 	setupAuth(router, pg, conf)
-	setupFiles(router, pg, conf)
+	setupFiles(router, pg, conf, q)
 
 	return router
 }
@@ -45,11 +46,11 @@ func setupAuth(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
 	}
 }
 
-func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config) {
+func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config, q *queue.Queue) {
 	gr := router.Group("files")
 	gr.Use(authMiddleware(conf))
 	{
 		gr.GET("", servFiles(pg, conf))
-		gr.POST("upload", upload(pg, conf))
+		gr.POST("upload", upload(pg, conf, q))
 	}
 }

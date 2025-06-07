@@ -5,35 +5,16 @@ import (
 	"sync"
 )
 
-type QueueItemType uint
-
-const (
-	Q_TEST_ITEM    QueueItemType = iota
-	GEN_THUMBNAILS QueueItemType = iota + 1
-)
-
-type QueueItem struct {
-	itemType QueueItemType
-}
-
-func (it *QueueItem) process() {
-	switch it.itemType {
-	case Q_TEST_ITEM:
-	case GEN_THUMBNAILS:
-		// gen thumbnails
-	}
-}
-
 type Queue struct {
 	ctx     context.Context
-	list    chan QueueItem
+	list    chan item
 	workers int
 }
 
 func New(ctx context.Context) *Queue {
 	q := &Queue{
 		ctx:     ctx,
-		list:    make(chan QueueItem),
+		list:    make(chan item),
 		workers: 16, // default
 	}
 
@@ -44,6 +25,7 @@ func New(ctx context.Context) *Queue {
 
 func (q *Queue) run() {
 	var wg sync.WaitGroup
+	wg.Add(q.workers)
 
 	for range q.workers {
 		go func() {
@@ -64,8 +46,6 @@ func (q *Queue) run() {
 	wg.Wait()
 }
 
-func (q *Queue) Add(itemType QueueItemType) {
-	q.list <- QueueItem{
-		itemType: itemType,
-	}
+func (q *Queue) Add(item item) {
+	q.list <- item
 }

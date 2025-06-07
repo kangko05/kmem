@@ -8,6 +8,7 @@ import (
 	"kmem/internal/config"
 	"kmem/internal/db"
 	"kmem/internal/models"
+	"kmem/internal/queue"
 	"kmem/internal/utils"
 	"net/http"
 	"os"
@@ -37,14 +38,26 @@ func servFiles(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		val, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "failed to get username",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
 			return
 		}
 
 		username := val.(string)
+
+		if len(username) == 0 {
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
+			return
+		}
 
 		limit, page := getLimitPageQuery(ctx.Query("limit"), ctx.Query("page"))
 
@@ -58,102 +71,102 @@ func servFiles(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 			typeStr = "all"
 		}
 
-		if len(username) == 0 {
-			models.APIResponse{
-				Status:  http.StatusBadRequest,
-				Message: "failed to get username",
-			}.Send(ctx)
-			return
-		}
-
 		dbfiles, err := pg.GetFilesPage(username, page, limit, sort, typeStr)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: err.Error(),
-			}.Send(ctx)
+
+			fmt.Println(err)
+
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to get uesr files",
+			).Send(ctx)
+
 			return
 		}
 
 		totalFiles, err := pg.GetFilesCount(username, typeStr)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: err.Error(),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to get user files",
+			).Send(ctx)
+
 			return
 		}
 
-		var files []models.File
-		for _, f := range dbfiles {
-			after, ok := strings.CutPrefix(f.FilePath, conf.UploadPath())
-			if ok {
-				files = append(files, models.File{
-					OriginalName: f.OriginalName,
-					FilePath:     after,
-					MimeType:     f.MimeType,
-				})
-			}
-		}
-
 		type Page struct {
-			Files    []models.File `json:"files"`
-			HasNext  bool          `json:"hasNext"`
-			NextPage int           `json:"nextPage"`
+			Files    []models.FileResponse `json:"files"`
+			HasNext  bool                  `json:"hasNext"`
+			NextPage int                   `json:"nextPage"`
 		}
 
 		pageResponse := Page{
-			Files:    files,
+			Files:    dbfiles,
 			HasNext:  (page+1)*limit < totalFiles,
 			NextPage: page + 1,
 		}
 
-		ctx.JSON(http.StatusOK, pageResponse)
+		models.SuccessResponse(pageResponse).Send(ctx)
 	}
 }
 
-func upload(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
+func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		v, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "failed to authorize",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
 
 			return
 		}
 
 		username, ok := v.(string)
 		if !ok {
-			models.APIResponse{
-				Status:  http.StatusUnauthorized,
-				Message: "failed to authorize",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
 
 			return
 		}
 
 		encodedName := ctx.Query("filename")
 		if len(encodedName) == 0 {
-			models.APIResponse{
-				Status:  http.StatusBadRequest,
-				Message: "need filename",
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"filename required",
+			).Send(ctx)
 
 			return
 		}
 
 		// process filename
 		originalName, safename, mimeType, err := utils.ProcessFilename(encodedName)
+		if err != nil {
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"invalid filename",
+			).Send(ctx)
+
+			return
+		}
 
 		dst := fmt.Sprintf("%s/%s/%s", conf.UploadPath(), username, safename)
 
 		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to create upload dir: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to upload file",
+			).Send(ctx)
 
 			return
 		}
@@ -163,10 +176,13 @@ func upload(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 		//
 		file, err := os.Create(dst)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to create file: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to upload file",
+			).Send(ctx)
+
+			fmt.Println(err)
 
 			return
 		}
@@ -174,10 +190,13 @@ func upload(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 
 		size, err := io.Copy(io.MultiWriter(file, hasher), ctx.Request.Body)
 		if err != nil {
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to stream request body: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to upload file",
+			).Send(ctx)
+
+			fmt.Println(err, 1)
 
 			return
 		}
@@ -191,25 +210,30 @@ func upload(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
 			OriginalName: originalName,
 			StoredName:   safename,
 			FilePath:     dst,
+			RelativePath: "/static" + strings.TrimPrefix(dst, conf.UploadPath()),
 			FileSize:     size,
 			MimeType:     mimeType,
 		}
 
-		err = pg.InsertFile(filemeta)
+		fileId, err := pg.InsertFile(filemeta)
 		if err != nil {
 			os.Remove(dst)
 
-			models.APIResponse{
-				Status:  http.StatusInternalServerError,
-				Message: fmt.Sprintf("failed to insert file metadata into db: %v", err),
-			}.Send(ctx)
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to upload file",
+			).Send(ctx)
+
+			fmt.Println(err, 2)
 
 			return
 		}
 
-		models.APIResponse{
-			Status:  http.StatusOK,
-			Message: "ok",
-		}.Send(ctx)
+		models.SuccessResponse(nil).Send(ctx)
+
+		filemeta.ID = fileId
+
+		q.Add(queue.GenThumbnail(pg, conf, filemeta))
 	}
 }
