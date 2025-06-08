@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"kmem/internal/cache"
 	"kmem/internal/config"
 	"kmem/internal/db"
 	"kmem/internal/models"
@@ -34,7 +35,7 @@ func getLimitPageQuery(limitStr, pageStr string) (int, int) {
 }
 
 // get limit & offset & page through query
-func servFiles(pg *db.Postgres) gin.HandlerFunc {
+func servFiles(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		val, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
@@ -69,6 +70,15 @@ func servFiles(pg *db.Postgres) gin.HandlerFunc {
 		typeStr := ctx.Query("type")
 		if len(typeStr) == 0 {
 			typeStr = "all"
+		}
+
+		// check cache
+		cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s", username, limit, page, sort, typeStr)
+
+		v, ok := cache.Get(cacheKey)
+		if ok {
+			models.SuccessResponse(v).Send(ctx)
+			return
 		}
 
 		dbfiles, err := pg.GetFilesPage(username, page, limit, sort, typeStr)
@@ -108,11 +118,12 @@ func servFiles(pg *db.Postgres) gin.HandlerFunc {
 			NextPage: page + 1,
 		}
 
+		cache.Set(cacheKey, pageResponse)
 		models.SuccessResponse(pageResponse).Send(ctx)
 	}
 }
 
-func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue) gin.HandlerFunc {
+func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue, cache *cache.Cache) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		v, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
@@ -230,10 +241,11 @@ func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue) gin.HandlerFun
 			return
 		}
 
+		cache.InvalidateUserGallery(username)
+
 		models.SuccessResponse(nil).Send(ctx)
 
 		filemeta.ID = fileId
-
 		q.Add(queue.GenThumbnail(pg, conf, filemeta))
 	}
 }
