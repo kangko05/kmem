@@ -9,10 +9,11 @@ export interface IFile {
 
 interface FileCardProps {
   file: IFile;
+  progress?: number;
   onRemove: () => void;
 }
 
-export const FileCard = ({ file, onRemove }: FileCardProps) => {
+export const FileCard = ({ file, progress, onRemove }: FileCardProps) => {
   const { fileobj, status, msg } = file;
 
   const formatFileSize = (bytes: number) => {
@@ -32,7 +33,16 @@ export const FileCard = ({ file, onRemove }: FileCardProps) => {
   const getStatusIcon = () => {
     switch (status) {
       case "uploading":
-        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+        return (
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+            {progress && progress == 100 ? (
+              <span className="text-xs animate-pulse">postprocessing...</span>
+            ) : (
+              <span className="text-xs">{progress}%</span>
+            )}
+          </div>
+        );
       case "success":
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case "error":

@@ -8,6 +8,7 @@ export const UploadPage = () => {
 
   const [files, setFiles] = useState<IFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
 
   const handleFileChange = (ev: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = ev.target.files;
@@ -28,6 +29,18 @@ export const UploadPage = () => {
     setFiles((prev) => prev.map((file) => (file.id == fileId ? { ...file, status, msg } : file)));
   };
 
+  const updateFileProgress = (fileId: string, progress: number) => {
+    setUploadProgress((prev) => new Map(prev.set(fileId, progress)));
+  };
+
+  const cleanupProgress = (fileId: string) => {
+    setUploadProgress((prev) => {
+      const newMap = new Map(prev);
+      newMap.delete(fileId);
+      return newMap;
+    });
+  };
+
   const uploadFile = async (file: IFile) => {
     try {
       updateFileStatus(file.id, "uploading");
@@ -36,7 +49,13 @@ export const UploadPage = () => {
 
       const resp = await axiosInstance.post(
         `/files/upload?filename=${encodedFilename}`,
-        file.fileobj
+        file.fileobj,
+        {
+          onUploadProgress: (ev) => {
+            const progress = Math.round((ev.loaded * 100) / ev.total);
+            updateFileProgress(file.id, progress);
+          },
+        }
       );
 
       if (resp.status === 200) {
@@ -52,6 +71,8 @@ export const UploadPage = () => {
       } else {
         updateFileStatus(file.id, "error");
       }
+    } finally {
+      cleanupProgress(file.id);
     }
   };
 
@@ -75,6 +96,7 @@ export const UploadPage = () => {
 
   const handleRemove = (fileId: string) => {
     setFiles((prev) => prev.filter((file) => file.id !== fileId));
+    cleanupProgress(fileId);
   };
 
   const getUploadStats = () => {
@@ -122,7 +144,12 @@ export const UploadPage = () => {
 
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {files.map((file) => (
-                <FileCard key={file.id} file={file} onRemove={() => handleRemove(file.id)} />
+                <FileCard
+                  key={file.id}
+                  file={file}
+                  onRemove={() => handleRemove(file.id)}
+                  progress={uploadProgress.get(file.id) || 0}
+                />
               ))}
             </div>
           </div>

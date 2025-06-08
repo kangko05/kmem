@@ -34,7 +34,7 @@ func getLimitPageQuery(limitStr, pageStr string) (int, int) {
 }
 
 // get limit & offset & page through query
-func servFiles(pg *db.Postgres, conf *config.Config) gin.HandlerFunc {
+func servFiles(pg *db.Postgres) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		val, ok := ctx.Get(utils.USERNAME_KEY)
 		if !ok {
@@ -171,9 +171,9 @@ func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue) gin.HandlerFun
 			return
 		}
 
+		//
 		hasher := sha256.New()
 
-		//
 		file, err := os.Create(dst)
 		if err != nil {
 			models.ErrorResponse(

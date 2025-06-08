@@ -50,7 +50,7 @@ func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config, q *que
 	gr := router.Group("files")
 	gr.Use(authMiddleware(conf))
 	{
-		gr.GET("", servFiles(pg, conf))
+		gr.GET("", servFiles(pg))
 		gr.POST("upload", upload(pg, conf, q))
 	}
 }
