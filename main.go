@@ -26,15 +26,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// connect postgres
-	pg, err := db.Connect(conf)
+	pg, err := db.Connect(ctx, conf)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pg.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	q := queue.New(ctx)
 	cache := cache.New(ctx)

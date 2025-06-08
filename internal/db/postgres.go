@@ -11,16 +11,18 @@ import (
 )
 
 type Postgres struct {
-	conn *sql.DB
+	ctx       context.Context
+	txtimeout time.Duration
+	conn      *sql.DB
 }
 
-func Connect(conf *config.Config) (*Postgres, error) {
+func Connect(ctx context.Context, conf *config.Config) (*Postgres, error) {
 	conn, err := sql.Open("postgres", conf.PostgresConnStr())
 	if err != nil {
 		return nil, err
 	}
 
-	pg := &Postgres{conn: conn}
+	pg := &Postgres{ctx: ctx, txtimeout: 5 * time.Second, conn: conn}
 
 	if err := pg.initTables(); err != nil {
 		return nil, fmt.Errorf("failed to init tables: %v", err)
@@ -52,6 +54,8 @@ func (pg *Postgres) initTables() error {
 		file_size BIGINT,
 		mime_type VARCHAR(32),
 		uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		deleted BOOL DEFAULT false,
+		deleted_at TIMESTAMP,
 		FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
 	)`)
 	if err != nil {

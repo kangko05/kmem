@@ -34,7 +34,7 @@ func getLimitPageQuery(limitStr, pageStr string) (int, int) {
 	return limit, page
 }
 
-// get limit & offset & page through query
+// get limit & offset & page & search through query
 func servFiles(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		val, ok := ctx.Get(utils.USERNAME_KEY)
@@ -72,8 +72,10 @@ func servFiles(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 			typeStr = "all"
 		}
 
+		searchStr := ctx.Query("search")
+
 		// check cache
-		cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s", username, limit, page, sort, typeStr)
+		cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s:%s", username, limit, page, sort, typeStr, searchStr)
 
 		v, ok := cache.Get(cacheKey)
 		if ok {
@@ -81,7 +83,7 @@ func servFiles(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 			return
 		}
 
-		dbfiles, err := pg.GetFilesPage(username, page, limit, sort, typeStr)
+		dbfiles, err := pg.GetFilesPage(username, page, limit, sort, typeStr, searchStr)
 		if err != nil {
 
 			fmt.Println(err)
@@ -95,7 +97,7 @@ func servFiles(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 			return
 		}
 
-		totalFiles, err := pg.GetFilesCount(username, typeStr)
+		totalFiles, err := pg.GetFilesCount(username, typeStr, searchStr)
 		if err != nil {
 			models.ErrorResponse(
 				http.StatusInternalServerError,
@@ -247,5 +249,119 @@ func upload(pg *db.Postgres, conf *config.Config, q *queue.Queue, cache *cache.C
 
 		filemeta.ID = fileId
 		q.Add(queue.GenThumbnail(pg, conf, filemeta))
+	}
+}
+
+func deleteFile(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		v, ok := ctx.Get(utils.USERNAME_KEY)
+		if !ok {
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
+			return
+		}
+
+		username, ok := v.(string)
+		if !ok {
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
+			return
+		}
+
+		fileId := ctx.Param("fileId")
+		if len(fileId) == 0 {
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"file id required",
+			).Send(ctx)
+
+			return
+		}
+
+		if err := pg.DeleteFile(username, fileId); err != nil {
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				fmt.Sprintf("failed to delete file: %v", fileId),
+			).Send(ctx)
+
+			return
+		}
+
+		cache.InvalidateUserGallery(username)
+		models.SuccessResponse(nil).Send(ctx)
+	}
+}
+
+func renameFile(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		v, ok := ctx.Get(utils.USERNAME_KEY)
+		if !ok {
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
+			return
+		}
+
+		username, ok := v.(string)
+		if !ok {
+			models.ErrorResponse(
+				http.StatusUnauthorized,
+				models.ErrUnauthorized,
+				"authentication required",
+			).Send(ctx)
+
+			return
+		}
+
+		fileId := ctx.Param("fileId")
+		if len(fileId) == 0 {
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"file id required",
+			).Send(ctx)
+
+			return
+		}
+
+		var req struct {
+			NewName string `json:"newName" binding:"required"`
+		}
+
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			models.ErrorResponse(
+				http.StatusBadRequest,
+				models.ErrInvalidInput,
+				"new name required",
+			).Send(ctx)
+			return
+		}
+
+		err := pg.RenameFile(username, fileId, req.NewName)
+		if err != nil {
+			models.ErrorResponse(
+				http.StatusInternalServerError,
+				models.ErrDatabase,
+				"failed to rename file",
+			).Send(ctx)
+
+			return
+		}
+
+		cache.InvalidateUserGallery(username)
+		models.SuccessResponse(nil).Send(ctx)
 	}
 }

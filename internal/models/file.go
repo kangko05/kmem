@@ -6,16 +6,18 @@ import (
 )
 
 type File struct {
-	ID           int       `json:"id" db:"id"`
-	Hash         string    `json:"hash" db:"hash"` // md5
-	Username     string    `json:"username" db:"username"`
-	OriginalName string    `json:"originalName" db:"original_name"`
-	StoredName   string    `json:"storedName" db:"stored_name"`
-	FilePath     string    `json:"filePath" db:"file_path"`
-	RelativePath string    `json:"relativePath" db:"relative_path"`
-	FileSize     int64     `json:"fileSize" db:"file_size"`
-	MimeType     string    `json:"mimeType" db:"mime_type"`
-	UploadedAt   time.Time `json:"uploadedAt" db:"uploaded_at"`
+	ID           int        `json:"id" db:"id"`
+	Hash         string     `json:"hash" db:"hash"` // md5
+	Username     string     `json:"username" db:"username"`
+	OriginalName string     `json:"originalName" db:"original_name"`
+	StoredName   string     `json:"storedName" db:"stored_name"`
+	FilePath     string     `json:"filePath" db:"file_path"`
+	RelativePath string     `json:"relativePath" db:"relative_path"`
+	FileSize     int64      `json:"fileSize" db:"file_size"`
+	MimeType     string     `json:"mimeType" db:"mime_type"`
+	UploadedAt   time.Time  `json:"uploadedAt" db:"uploaded_at"`
+	Deleted      bool       `json:"deleted" db:"deleted"`
+	DeletedAt    *time.Time `json:"deletedAt" db:"deleted_at"` // allow null
 }
 
 func (f *File) IsImage() bool {
@@ -78,6 +80,7 @@ type FileUploadResponse struct {
 }
 
 type FileResponse struct {
+	ID           int                          `json:"id"`
 	OriginalName string                       `json:"originalName,omitempty"`
 	MimeType     string                       `json:"mimeType,omitempty"`
 	FilePath     string                       `json:"filePath,omitempty"` // rel path

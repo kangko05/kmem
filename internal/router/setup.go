@@ -53,5 +53,7 @@ func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config, q *que
 	{
 		gr.GET("", servFiles(pg, cache))
 		gr.POST("upload", upload(pg, conf, q, cache))
+		gr.DELETE(":fileId", deleteFile(pg, cache))
+		gr.PUT(":fileId", renameFile(pg, cache))
 	}
 }
