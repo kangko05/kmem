@@ -220,6 +220,7 @@ func me() gin.HandlerFunc {
 // if access token is expired, refresh
 func authMiddleware(conf *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+
 		jwtSecret := conf.JwtSecretKey()
 
 		username, err := validateToken(ctx, utils.ACCESS_TOKEN_KEY, jwtSecret)

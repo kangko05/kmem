@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"kmem/internal/cache"
 	"kmem/internal/config"
 	"kmem/internal/db"
 	"kmem/internal/queue"
@@ -25,9 +26,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// connect postgres
 	pg, err := db.Connect(conf)
 	if err != nil {
@@ -35,9 +33,13 @@ func main() {
 	}
 	defer pg.Close()
 
-	q := queue.New(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	if err := router.Setup(pg, conf, q).Run(conf.ServerPort()); err != nil {
+	q := queue.New(ctx)
+	cache := cache.New(ctx)
+
+	if err := router.Setup(pg, conf, q, cache).Run(conf.ServerPort()); err != nil {
 		log.Fatal(err)
 	}
 }
