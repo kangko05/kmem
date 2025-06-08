@@ -7,10 +7,12 @@ export const HomePage = () => {
 
   return (
     <PageLayout>
-      <h1>Home!</h1>
-      <Link to="/login" className="btn">
-        Back to Login{" "}
-      </Link>
+      <div className="w-full h-full flex-center flex-col">
+        <h1>Home!</h1>
+        <Link to="/login" className="btn">
+          Back to Login{" "}
+        </Link>
+      </div>
     </PageLayout>
   );
 };
