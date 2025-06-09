@@ -1,0 +1,11 @@
+server:
+    port: 8000
+    jwtSecret: ""
+    uploadPath: /data/uploads
+postgres:
+    host: db
+    port: 5432
+    user: kmem_user
+    password: ""
+    databaseName: kmem
+    sslmode: disable

@@ -1,0 +1,17 @@
+# git
+.git
+.gitignore
+.github
+
+# docker
+Dockerfile
+.dockerignore
+
+# node
+frontend/node_modules
+frontend/.vite
+frontend/dist
+
+#
+.env
+config.yml
