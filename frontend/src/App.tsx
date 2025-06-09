@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 const queryClient = new QueryClient();
 
 const router = createBrowserRouter([
-  { path: "/", element: <div>Hello World!</div> },
+  { path: "/", element: <LoginPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/home", element: <HomePage /> },
   { path: "/upload", element: <UploadPage /> },
