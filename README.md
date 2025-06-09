@@ -76,12 +76,12 @@ Run development script:
 dev.sh
 ```
 
-Add account
+Add account:
 
 ```shell
 curl -X POST \
     -H "Content-Type: application/json" \
-    -d '{"username": "testuser", "password":"testpass"}' \
+    -d '{"username": "testuser", "password":"testpass"}' \ # username and password here
     localhost:8000/auth/signup
 ```
 
