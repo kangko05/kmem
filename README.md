@@ -76,6 +76,15 @@ Run development script:
 dev.sh
 ```
 
+Add account
+
+```shell
+curl -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username": "testuser", "password":"testpass"}' \
+    localhost:8000/auth/signup
+```
+
 - Access application at 'http://localhost:5173'
 - Currently using vite dev server for frontend for now
 
