@@ -60,22 +60,38 @@ func (c *Cache) Set(key string, val any) {
 
 func (c *Cache) Get(key string) (any, bool) {
 	val, ok := c.list.Load(key)
-	if ok {
-		item := val.(cacheItem)
-		item.hit += 1
-		c.list.Store(key, item)
-
-		return item.val, true
+	if !ok {
+		return nil, false
 	}
 
-	return nil, false
+	item := val.(cacheItem)
+
+	if time.Now().Unix() >= item.expires {
+		c.list.Delete(key)
+		return nil, false
+	}
+
+	item.hit += 1
+	c.list.Store(key, item)
+	return item.val, true
 }
 
 func (c *Cache) InvalidateUserGallery(username string) {
-	prefix := fmt.Sprintf("gallery:%s", username)
+	galleryPrefix := fmt.Sprintf("gallery:%s", username)
+	statsPrefix := fmt.Sprintf("%s:stats", username)
 
 	c.list.Range(func(key, value any) bool {
-		if strings.Contains(key.(string), prefix) {
+		keyStr := key.(string)
+		if strings.HasPrefix(keyStr, galleryPrefix) || strings.HasPrefix(keyStr, statsPrefix) {
+			c.list.Delete(key)
+		}
+		return true
+	})
+}
+
+func (c *Cache) ClearGalleryCache() {
+	c.list.Range(func(key, value any) bool {
+		if strings.Contains(key.(string), "gallery:") {
 			c.list.Delete(key)
 		}
 

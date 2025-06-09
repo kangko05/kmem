@@ -8,6 +8,7 @@ import (
 	"kmem/internal/queue"
 	"kmem/internal/router"
 	"log"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -37,9 +38,27 @@ func main() {
 	defer pg.Close()
 
 	q := queue.New(ctx)
+
 	cache := cache.New(ctx)
+
+	q.Add(queue.CleanItems(pg, conf, cache))
+	go cleanPeriod(ctx, q, pg, conf, cache)
 
 	if err := router.Setup(pg, conf, q, cache).Run(conf.ServerPort()); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func cleanPeriod(ctx context.Context, q *queue.Queue, pg *db.Postgres, conf *config.Config, cache *cache.Cache) {
+	ticker := time.NewTicker(time.Hour * 24)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			q.Add(queue.CleanItems(pg, conf, cache))
+		}
 	}
 }

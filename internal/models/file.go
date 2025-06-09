@@ -1,9 +1,17 @@
 package models
 
 import (
-	"fmt"
+	"kmem/internal/utils"
 	"time"
 )
+
+type DelFile struct {
+	Id             int
+	Deleted        bool
+	DeletedAt      *time.Time
+	FilePath       string
+	ThumbnailPaths []string
+}
 
 type File struct {
 	ID           int        `json:"id" db:"id"`
@@ -50,18 +58,20 @@ func (f *File) GetFileType() string {
 }
 
 func (f *File) GetReadableSize() string {
-	const unit = 1024
-	if f.FileSize < unit {
-		return fmt.Sprintf("%d B", f.FileSize)
-	}
+	return utils.GetReadableSize(f.FileSize)
 
-	div, exp := int64(unit), 0
-	for n := f.FileSize / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	return fmt.Sprintf("%.1f %cB", float64(f.FileSize)/float64(div), "KMGTPE"[exp])
+	// const unit = 1024
+	// if f.FileSize < unit {
+	// 	return fmt.Sprintf("%d B", f.FileSize)
+	// }
+	//
+	// div, exp := int64(unit), 0
+	// for n := f.FileSize / unit; n >= unit; n /= unit {
+	// 	div *= unit
+	// 	exp++
+	// }
+	//
+	// return fmt.Sprintf("%.1f %cB", float64(f.FileSize)/float64(div), "KMGTPE"[exp])
 }
 
 // DTO ========================================================================

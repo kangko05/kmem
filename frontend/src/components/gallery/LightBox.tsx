@@ -1,6 +1,13 @@
 import { SERVER } from "../../constants";
-import { useState, useEffect, type MouseEvent, useRef } from "react";
-import { Settings2, Edit2, Trash2 } from "lucide-react";
+import {
+  useState,
+  useEffect,
+  type MouseEvent,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { Settings2, Edit2, Trash2, X } from "lucide-react";
 import { axiosInstance } from "../../utils";
 import { type Ifile } from "./types";
 
@@ -9,11 +16,13 @@ const FileSettings = ({
   originalName,
   close,
   refetch,
+  setOpenSettings,
 }: {
   fileId: number;
   originalName: string;
   close: () => void;
   refetch: () => void;
+  setOpenSettings: Dispatch<SetStateAction<boolean>>;
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState("");
@@ -102,6 +111,7 @@ const FileSettings = ({
           >
             Save
           </button>
+
           <button
             onClick={handleRenameCancel}
             className="flex-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
@@ -128,6 +138,14 @@ const FileSettings = ({
       >
         <Trash2 className="w-4 h-4" />
         Delete
+      </button>
+
+      <button
+        className="w-full px-4 py-2 text-left hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2 mb-1"
+        onClick={() => setOpenSettings(false)}
+      >
+        <X className="w-4 h-4" />
+        Close
       </button>
     </div>
   );
@@ -186,7 +204,7 @@ export const LightBox = ({
     // >
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
       <Settings2
-        className="absolute top-10 left-10 cursor-pointer"
+        className="absolute top-8 left-5 sm:top-10 sm:left-10 cursor-pointer"
         onClick={(ev) => {
           ev.stopPropagation();
           setOpenSettings(!openSettings);
@@ -199,6 +217,7 @@ export const LightBox = ({
           originalName={currentFile.originalName}
           close={onClose}
           refetch={refetch}
+          setOpenSettings={setOpenSettings}
         />
       )}
 

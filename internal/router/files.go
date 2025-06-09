@@ -287,7 +287,7 @@ func deleteFile(pg *db.Postgres, cache *cache.Cache) gin.HandlerFunc {
 			return
 		}
 
-		if err := pg.DeleteFile(username, fileId); err != nil {
+		if err := pg.DeleteFileSoft(username, fileId); err != nil {
 			models.ErrorResponse(
 				http.StatusInternalServerError,
 				models.ErrDatabase,

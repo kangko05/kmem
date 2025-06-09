@@ -29,6 +29,7 @@ func Setup(pg *db.Postgres, conf *config.Config, q *queue.Queue, cache *cache.Ca
 
 	setupAuth(router, pg, conf)
 	setupFiles(router, pg, conf, q, cache)
+	setupStats(router, pg, conf, cache)
 
 	return router
 }
@@ -55,5 +56,13 @@ func setupFiles(router *gin.Engine, pg *db.Postgres, conf *config.Config, q *que
 		gr.POST("upload", upload(pg, conf, q, cache))
 		gr.DELETE(":fileId", deleteFile(pg, cache))
 		gr.PUT(":fileId", renameFile(pg, cache))
+	}
+}
+
+func setupStats(router *gin.Engine, pg *db.Postgres, conf *config.Config, cache *cache.Cache) {
+	gr := router.Group("stats")
+	gr.Use(authMiddleware(conf))
+	{
+		gr.GET("usage", getUsage(pg, cache))
 	}
 }
