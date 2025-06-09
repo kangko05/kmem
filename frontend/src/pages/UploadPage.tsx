@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from "react";
 import { PageLayout, FileInput, FileCard, type IFile } from "../components";
 import { axiosInstance } from "../utils";
 import { useAuth } from "../hooks/useAuth";
+import { AxiosError } from "axios";
 
 export const UploadPage = () => {
   useAuth();
@@ -52,7 +53,7 @@ export const UploadPage = () => {
         file.fileobj,
         {
           onUploadProgress: (ev) => {
-            const progress = Math.round((ev.loaded * 100) / ev.total);
+            const progress = Math.round((ev.loaded * 100) / (ev.total as number));
             updateFileProgress(file.id, progress);
           },
         }
@@ -66,7 +67,10 @@ export const UploadPage = () => {
     } catch (err) {
       console.error("Upload failed:", file.fileobj.name, err);
 
-      if (err?.response?.data?.message?.includes("file already exists")) {
+      if (
+        err instanceof AxiosError &&
+        err?.response?.data?.message?.includes("file already exists")
+      ) {
         updateFileStatus(file.id, "error", "file exists");
       } else {
         updateFileStatus(file.id, "error");
