@@ -9,7 +9,9 @@ export const UploadPage = () => {
 
   const [files, setFiles] = useState<IFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
+  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(
+    new Map(),
+  );
 
   const handleFileChange = (ev: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = ev.target.files;
@@ -20,14 +22,20 @@ export const UploadPage = () => {
         id: `${Date.now()}-${Math.random()}`,
         fileobj: file,
         status: "pending",
-      })
+      }),
     );
 
     setFiles((prev) => [...prev, ...newFiles]);
   };
 
-  const updateFileStatus = (fileId: string, status: IFile["status"], msg?: string) => {
-    setFiles((prev) => prev.map((file) => (file.id == fileId ? { ...file, status, msg } : file)));
+  const updateFileStatus = (
+    fileId: string,
+    status: IFile["status"],
+    msg?: string,
+  ) => {
+    setFiles((prev) =>
+      prev.map((file) => (file.id == fileId ? { ...file, status, msg } : file)),
+    );
   };
 
   const updateFileProgress = (fileId: string, progress: number) => {
@@ -53,10 +61,12 @@ export const UploadPage = () => {
         file.fileobj,
         {
           onUploadProgress: (ev) => {
-            const progress = Math.round((ev.loaded * 100) / (ev.total as number));
+            const progress = Math.round(
+              (ev.loaded * 100) / (ev.total as number),
+            );
             updateFileProgress(file.id, progress);
           },
-        }
+        },
       );
 
       if (resp.status === 200) {
@@ -86,7 +96,9 @@ export const UploadPage = () => {
     setUploading(true);
 
     const batchSize = 3;
-    const pendingFiles = files.filter((f) => f.status == "pending" || f.status == "error");
+    const pendingFiles = files.filter(
+      (f) => f.status == "pending" || f.status == "error",
+    );
 
     for (let i = 0; i < pendingFiles.length; i += batchSize) {
       const batch = pendingFiles.slice(i, i + batchSize);
@@ -114,7 +126,8 @@ export const UploadPage = () => {
 
   const stats = getUploadStats();
   const hasFailedFiles = stats.error > 0;
-  const allCompleted = stats.success + stats.error === stats.total && stats.total > 0;
+  const allCompleted =
+    stats.success + stats.error === stats.total && stats.total > 0;
 
   return (
     <PageLayout>
@@ -129,9 +142,13 @@ export const UploadPage = () => {
               <div className="flex items-center gap-4">
                 {(uploading || allCompleted) && (
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="text-green-600 dark:text-green-400">✓ {stats.success}</span>
+                    <span className="text-green-600 dark:text-green-400">
+                      ✓ {stats.success}
+                    </span>
                     {stats.error > 0 && (
-                      <span className="text-red-600 dark:text-red-400 ml-2">✗ {stats.error}</span>
+                      <span className="text-red-600 dark:text-red-400 ml-2">
+                        ✗ {stats.error}
+                      </span>
                     )}
                     {stats.uploading > 0 && (
                       <span className="text-blue-600 dark:text-blue-400 ml-2">
@@ -140,7 +157,10 @@ export const UploadPage = () => {
                     )}
                   </div>
                 )}
-                <p onClick={() => setFiles([])} className="text-red-400 cursor-pointer">
+                <p
+                  onClick={() => setFiles([])}
+                  className="text-red-400 cursor-pointer"
+                >
                   clear
                 </p>
               </div>

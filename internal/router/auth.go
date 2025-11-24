@@ -14,7 +14,7 @@ import (
 )
 
 func checkUserPostBody(ctx *gin.Context, user *models.User) error {
-	if err := ctx.Bind(&user); err != nil {
+	if err := ctx.Bind(user); err != nil {
 		models.ErrorResponse(
 			http.StatusBadRequest,
 			models.ErrInvalidInput,
@@ -212,7 +212,7 @@ func me() gin.HandlerFunc {
 			return
 		}
 
-		models.SuccessResponse(nil).Send(ctx)
+		models.SuccessResponse(map[string]string{"username": username}).Send(ctx)
 	}
 }
 
